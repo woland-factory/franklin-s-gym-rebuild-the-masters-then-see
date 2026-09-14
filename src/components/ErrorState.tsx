@@ -1,0 +1,24 @@
+import styles from "./ErrorState.module.css";
+
+interface ErrorStateProps {
+  title: string;
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}
+
+// In-voice error surface. States what happened and the next step. Never a stack
+// trace or raw error code.
+export function ErrorState({ title, message, actionLabel, onAction }: ErrorStateProps) {
+  return (
+    <section className={styles.wrap} role="alert">
+      <h2 className={styles.title}>{title}</h2>
+      <p className={styles.message}>{message}</p>
+      {actionLabel && onAction && (
+        <button type="button" className="btn btn-primary" onClick={onAction}>
+          {actionLabel}
+        </button>
+      )}
+    </section>
+  );
+}

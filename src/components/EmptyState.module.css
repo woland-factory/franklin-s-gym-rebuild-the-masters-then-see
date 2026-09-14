@@ -1,0 +1,59 @@
+.wrap {
+  max-width: 560px;
+  margin: var(--space-6) auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.title {
+  font-family: var(--font-serif);
+  font-size: var(--text-3xl);
+  line-height: var(--leading-tight);
+  font-weight: 700;
+}
+
+.description {
+  font-size: var(--text-lg);
+  color: var(--color-text-muted);
+  max-width: 46ch;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  width: 100%;
+}
+
+.actions :global(.btn-primary) {
+  width: 100%;
+  max-width: 320px;
+}
+
+/* The secondary action is visibly subordinate to the primary. */
+.secondary :global(button) {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  min-height: var(--tap-target);
+  padding: 0 var(--space-3);
+  font-size: var(--text-base);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.secondary :global(button:hover) {
+  color: var(--color-text);
+}
+
+@media (min-width: 600px) {
+  .title {
+    font-size: 2.75rem;
+  }
+}
