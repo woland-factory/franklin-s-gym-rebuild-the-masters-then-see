@@ -33,3 +33,46 @@ test.describe("first render at 390px", () => {
     await expect(page.getByRole("heading", { name: /how it works/i })).toBeVisible();
   });
 });
+
+async function noHorizontalScroll(page: import("@playwright/test").Page) {
+  return page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+}
+
+test.describe("condense and vault loop", () => {
+  test("start, hint, reload resumes, then vault shows on the dashboard", async ({ page }) => {
+    await page.goto("/library");
+
+    // Start an attempt from the first seed card.
+    await page.getByRole("button", { name: /^Start$/ }).first().click();
+    await expect(page).toHaveURL(/\/condense\//);
+    await expect(page.getByText(/Sentence 1 of/)).toBeVisible();
+    expect(await noHorizontalScroll(page)).toBe(true);
+
+    // Add one hint and advance so the write persists.
+    await page.getByLabel(/Your hint/i).fill("a trigger note");
+    await page.getByRole("button", { name: /^Next$/ }).click();
+    await expect(page.getByText(/Sentence 2 of/)).toBeVisible();
+
+    // A reload resumes at the saved cursor, not back at sentence one.
+    await page.reload();
+    await expect(page.getByText(/Sentence 2 of/)).toBeVisible();
+
+    // Walk to the final sentence.
+    for (let i = 0; i < 40; i++) {
+      const finish = page.getByRole("button", { name: /Finish and vault/i });
+      if (await finish.isVisible().catch(() => false)) break;
+      await page.getByRole("button", { name: /^Next$/ }).click();
+    }
+    await page.getByRole("button", { name: /Finish and vault/i }).click();
+
+    // Choose the short delay and vault.
+    await page.getByRole("radio", { name: /In 15 minutes/i }).check();
+    await page.getByRole("button", { name: /Vault it/i }).click();
+
+    // The dashboard now shows the vaulted attempt, with no original on screen.
+    await expect(page.getByRole("heading", { name: /your attempts/i })).toBeVisible();
+    await expect(page.getByText(/Vaulted/i).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /add to calendar/i }).first()).toBeVisible();
+    expect(await noHorizontalScroll(page)).toBe(true);
+  });
+});
