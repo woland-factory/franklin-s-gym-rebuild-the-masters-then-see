@@ -1,515 +1,528 @@
-# EPIC SPEC — App shell, seed library & staging scaffold
+# EPIC SPEC — Condense & vault
 
 Franklin's Gym: rebuild the masters, then see your gaps in color.
 
-This is the first EPIC. It builds the foundation the loop stands on: the
-client app skeleton (build, routing, local persistence), the curated seed
-passage library, the home dashboard shell with its designed empty state,
-analytics and error-tracking wiring, and the deploy scaffold. It ships no
-part of the condense → vault → reconstruct → align → ledger loop yet.
+This EPIC builds the front half of the training loop: start an attempt from
+a passage, condense it one sentence at a time into short hints, then vault the
+original behind a chosen delay so it cannot be peeked at until it is ripe. The
+home dashboard becomes a live pipeline that shows every attempt's state, and
+each vaulted attempt can export a calendar reminder for its ripe date. It stops
+before reconstruction and alignment, which land in EPIC 3.
+
+The foundation this builds on already exists (EPIC 1): a Vite + React 18 +
+TypeScript app, `react-router-dom` v7 routing in `src/App.tsx`, an IndexedDB
+layer (`src/lib/db.ts`, `src/lib/store.ts`) with an `attempts` object store and
+a `settings` store, the seed library (`src/data/seedPassages.ts`,
+`.types.ts`), the read-only `/library` browser, the home empty state, and the
+designed `EmptyState` / `ErrorState` / `Skeleton` components.
 
 ---
 
 ## Quality differentiator (this app must win here)
 
-**Incorruptible, instant confrontation.** The product wins on the honesty
-and precision of a deterministic sentence-by-sentence diff against a fixed
-original, computed in seconds, where paper cannot collate without tedium
-and a chatbot flatters. That alignment logic lands in EPIC 3, not here.
+**Incorruptible, instant confrontation.** The product wins on the honesty and
+precision of a deterministic sentence-by-sentence diff against a fixed
+original, computed in seconds, where paper cannot collate without tedium and a
+chatbot flatters. That alignment view lands in EPIC 3.
 
-**What it demands of THIS EPIC:** build the foundation so the future
-confrontation loads fast, feels honest, and never leaks the original.
-Concretely for this EPIC:
-- The seed library is the raw material the confrontation runs on. Segment
-  each passage cleanly and pick works whose prose still reads as modern,
-  so the eventual diff teaches instead of confusing the user with archaic
-  syntax. Sloppy seed data poisons every downstream alignment.
-- The shell must be fast and local-first from the first commit: real
-  content within ~1s, all state on the device, no network round-trip in
-  the core path. The differentiator is "computed in seconds on your
-  machine"; a slow or server-dependent shell contradicts it before the
-  loop even exists.
+**What it demands of THIS EPIC:** the vault is the promise that makes the later
+confrontation honest. If the original leaks before it is ripe, the whole
+exercise is void. So the load-bearing quality work here is the integrity of the
+vault, not decoration:
+
+- Once an attempt is vaulted, the original text MUST NOT be rendered on any
+  screen until `now >= vaultedUntil`. The condense screen, the dashboard, and
+  the reconstruct seam all obey this. The vault is a UI access rule, not
+  encryption (there is no server and a determined user can open devtools), but
+  the app must never be the thing that shows the answer early.
+- Sentence segmentation for paste-your-own must be clean and deterministic. It
+  is the raw material the EPIC-3 diff runs on, so a sloppy split poisons every
+  downstream alignment.
+- The loop must feel instant and local. Creating, saving, and vaulting an
+  attempt is a local IndexedDB write with immediate UI feedback. No network
+  round-trip touches the core path.
 
 ---
 
 ## Scope
 
 ### In scope
-1. **App skeleton**: a single-page browser app (Vite + React +
-   TypeScript), client-side routing, a production build, and a small,
-   fast bundle.
-2. **Local persistence layer**: an IndexedDB database initialized on
-   startup with a forward-only schema, plus a typed data-access module.
-   No user data ever leaves the device.
-3. **Curated seed passage library**: at least 12 pre-1930 public-domain
-   passages, each pre-segmented into sentences and tagged
-   short/medium/long, with title, author, source, and year. Bundled as
-   static read-only data. A read-only `/library` browse screen surfaces
-   them.
-4. **Home dashboard shell**: the `/` route with its designed empty state
-   (no attempts exist yet), one obvious primary action, and a "See an
-   example" entry point.
-5. **Analytics & error-tracking wiring**: Umami (`UMAMI_URL`,
-   `UMAMI_WEBSITE_ID`) and GlitchTip/Sentry (`SENTRY_DSN`), each read from
-   env/deploy config, never committed, each active only when present. The
-   app runs correctly with all three unset.
-6. **Deploy scaffold**: a `Dockerfile` that builds the production image,
-   a `docker-compose.staging.yml` that serves it on a documented port,
-   nginx SPA config, and runtime env injection.
-7. **README** rewritten for strangers (understand / run / contribute),
-   verified against the actual compose files.
+- Start an attempt from any seed library passage.
+- Paste-your-own: accept pasted text, segment it into sentences client-side,
+  enforce the documented length cap, keep it local and private.
+- A condense screen that presents one original sentence at a time and captures
+  one short hint per sentence, saving progress as the user goes.
+- On completion: pick a delay (standard default plus a short micro option) and
+  vault the attempt. The original is hidden until ripe.
+- A home dashboard that lists attempts and shows each one's state: condensing,
+  vaulted (with countdown or ripe date), or ripe. Ripe attempts are visibly the
+  primary thing to act on.
+- Export an `.ics` calendar event for a vaulted attempt's ripe date.
+- All new state persists in IndexedDB and survives reload.
 
-### Out of scope (non-goals — do not build)
-- **No condense / reconstruct / align logic.** No hint capture, no
-  vaulting, no delay clock, no reconstruction surface, no diff
-  computation. (EPICs 2 and 3.)
-- **No runtime segmentation of pasted text.** Seed sentences are
-  hand-split in the data file. The pasted-text segmenter is EPIC 2.
-- **No worked example payload.** The "See an example" button exists and
-  is not a dead end (see Technical design §9), but the live worked
-  attempt with a real alignment is EPIC 3.
-- **No accounts, no server-side storage, no cloud sync.**
-- **No first-run guided walkthrough, micro-drill, or `SEED_DEMO` demo
-  state.** (EPIC 5.) The deploy scaffold must not crash when `SEED_DEMO`
-  is set or unset, but it implements no demo behavior.
-- **No ledger, trend chart, or export/import.** (EPIC 4.)
-- **No quality/similarity score, streak, or leaderboard — ever.** (Binding
-  condition 1; a permanent product-wide fence.)
+### Out of scope (built by later EPICs, do not build here)
+- Reconstruction (the rebuild-from-hints writing surface) and the alignment
+  diff view. EPIC 3. This EPIC adds only a thin, non-leaking placeholder route
+  so a ripe attempt has a real destination instead of a dead link.
+- The ledger, trend chart, and export/import of the whole record. EPIC 4.
+- The guided first-run walkthrough, the full micro-drill with a distractor
+  passage, and the `SEED_DEMO` staging demo. EPIC 5. This EPIC ships
+  self-explanatory screens (one primary action, examples, designed empty
+  states) but does NOT build the step-by-step guided path.
+- Push or email reminders of any kind. Calendar export is the only reminder.
+- A settings screen, theme switching, or a persisted "remembered" default
+  delay. The default delay is a constant in this EPIC.
+- Any quality/similarity score, streak, or leaderboard.
+- Any runtime LLM, AI, or network call.
 
 ---
 
-## Quality bar applied to this EPIC
-
-The quality bar is part of this spec. The clauses that attach to EPIC 1:
-
-- **Perceived speed.** First meaningful render shows real home content,
-  not a blank page, within ~1s on an ordinary connection. Keep the
-  initial bundle small (budget below). Persistence init must not block
-  first paint.
-- **Mobile-first.** Every delivered screen (`/`, `/library`) is fully
-  usable at a 390px viewport: no horizontal scroll, touch targets ~44px,
-  text readable without zoom. Desktop is the enhancement.
-- **Designed states.** Home empty state, library loading state
-  (skeleton/placeholder that holds layout), and a persistence-error state
-  in the product's voice with a next step. No white screens, no raw
-  errors.
-- **Security hygiene (applicable subset — there is no server).** Secrets
-  via env only, never in the bundle or git. React output-encoding kept
-  intact (no `dangerouslySetInnerHTML` on any text). No PII in logs
-  (there is no user PII in this EPIC regardless). Server-auth and
-  rate-limit clauses have no route to attach to and are not applicable.
-- **Accessibility basics.** Semantic headings and landmarks, every
-  interactive control labeled and keyboard-reachable, visible focus
-  states, sufficient contrast, alt text on meaningful images.
-- **Radically simple interface.** One obvious primary action per screen.
-  Cut copy to the minimum. Show the passages, do not explain them.
-- **Copy sounds like a person.** Run the mechanical sweep (below) over
-  every user-visible string before finishing.
-- **README for strangers.** Delivered and verified against the compose
-  files.
-
-The **full first-run guided walkthrough is EPIC 5 and out of scope here.**
-For this EPIC, the home empty state alone must make the product
-self-explanatory: a new visitor understands what the app does and sees an
-obvious next step. That is comprehension via layout, not a walkthrough.
+## Non-goals (binding — a built non-goal is a defect)
+- No reconstruction or alignment logic. No writing surface that accepts a
+  rebuild, no diff, no metrics.
+- No push or email reminders. No mail service call.
+- No accounts, no server, no upload of any passage or hint. Pasted text and all
+  hints stay on the device.
+- No redistribution or export of seed or pasted passage text beyond the single
+  attempt owner's own `.ics` (which carries only the title and ripe date, not
+  the passage body).
 
 ---
 
 ## Technical design
 
-### 1. Stack and rationale
-- **Vite + React + TypeScript.** Static SPA, fast dev, small production
-  bundle, trivial to serve from a container. No backend, matching the
-  local-first architecture.
-- **Routing:** `react-router-dom` (client-side).
-- **Persistence:** IndexedDB via the small `idb` wrapper (promise-based,
-  ~1KB). No ORM, no Dexie — the smallest thing that gives typed access.
-- **Styling:** plain CSS with CSS custom properties as design tokens
-  (colors, spacing, radii, type scale) in one `tokens.css`, plus
-  component-scoped CSS Modules. No UI component library, no Tailwind. This
-  keeps the bundle small and the surface honest.
-- **Analytics:** conditional Umami script injection.
-- **Error tracking:** `@sentry/react`, initialized only when a DSN is
-  present.
-- **Tests:** Vitest + `@testing-library/react` + `fake-indexeddb` for
-  unit/component tests; one Playwright smoke spec for viewport and
-  first-render checks.
+### Stack and conventions (match what exists)
+- TypeScript, React 18 function components, CSS Modules (`*.module.css`) with
+  tokens from `src/styles/tokens.css`. Global button classes `btn`,
+  `btn-primary` already exist; reuse them.
+- Routing via `react-router-dom` v7 in `src/App.tsx`. Use `useParams`,
+  `useNavigate`, `Link`.
+- Persistence via the `idb` wrappers in `src/lib/db.ts` / `src/lib/store.ts`.
+  All reads and writes go through `store.ts`; components never call `openDb`
+  directly.
+- Tests: Vitest + Testing Library (`*.test.ts[x]` next to the file), with
+  `fake-indexeddb` for store tests (see `src/lib/db.test.ts` for the pattern).
+  Playwright smoke tests in `e2e/`.
+- IDs: `crypto.randomUUID()` (available in browsers and the jsdom/Node test
+  env).
+- User text (custom passages, hints) is rendered only as React text nodes,
+  which auto-escape. Never use `dangerouslySetInnerHTML`.
 
-Do not add state-management libraries, form libraries, or a component kit.
-Nothing here needs them.
+### Data model (forward-only, no DB version bump)
 
-### 2. Project structure (files/modules to create)
-```
-/  (worktree root)
-  Dockerfile
-  docker-compose.staging.yml
-  nginx.conf
-  docker-entrypoint.sh
-  .env.example
-  .dockerignore
-  package.json
-  tsconfig.json
-  vite.config.ts
-  index.html
-  public/
-    env-config.js          # default empty runtime config (committed, no secrets)
-  src/
-    main.tsx               # app bootstrap: mount, init persistence, init observability
-    App.tsx                # router + layout shell
-    routes/
-      Home.tsx             # '/' dashboard shell + empty state
-      Library.tsx          # '/library' read-only seed browser
-      NotFound.tsx         # catch-all 404, in-voice
-    components/
-      AppLayout.tsx        # header/landmarks, responsive container
-      EmptyState.tsx       # reusable designed empty state
-      PassageCard.tsx      # one seed passage (title/author/source/band)
-      Skeleton.tsx         # layout-holding loading placeholder
-      ErrorState.tsx       # in-voice error surface
-    data/
-      seedPassages.ts      # the >=12 curated passages (typed, read-only)
-      seedPassages.types.ts
-    lib/
-      db.ts                # IndexedDB open/init, forward-only migration
-      store.ts             # typed data-access over db.ts
-      config.ts            # reads runtime + build env (Umami, Sentry)
-      analytics.ts         # conditional Umami injection
-      observability.ts     # conditional Sentry init
-      wordCount.ts         # helper for band validation/tests
-    styles/
-      tokens.css
-      global.css
-  tests/                   # or *.test.ts colocated; pick one, be consistent
-    ...
-    smoke.spec.ts          # Playwright: 390px + first render
-```
-This is a guide, not a contract. Match names to what reads cleanly. Do not
-create modules for logic this EPIC does not implement (no `align.ts`,
-`segment.ts`, `attempt.ts`).
+The `attempts` object store, its `keyPath: "id"`, and its `by-status` /
+`by-createdAt` indexes already exist and are sufficient. Adding fields to the
+record does NOT require a `DB_VERSION` bump: IndexedDB records are schemaless
+per row, and a bump is only needed to create a new store or index. Leave
+`DB_VERSION` at 1. Existing rows (if any) are `{id, status, createdAt}`; new
+code must tolerate absent new fields by treating them as unset.
 
-### 3. Data model — persistence (forward-only, version 1)
-IndexedDB database, opened once at startup.
-
-- **Database name:** `franklins-gym`
-- **Version:** `1`
-- **Object stores created in v1:**
-  - `attempts` — `keyPath: "id"`; indexes: `by-status` on `status`,
-    `by-createdAt` on `createdAt`. (No records are written this EPIC;
-    the store is created so later EPICs migrate forward, never rewrite v1.)
-  - `settings` — `keyPath: "key"`. Seed one record only if you need a
-    schema/version marker; otherwise leave empty.
-- **Migrations are forward-only.** `db.ts` uses the `upgrade` callback and
-  switches on `oldVersion` so future versions add stores/indexes without
-  destroying v1 data. Never delete-and-recreate the database on schema
-  change.
-- **Seed passages do NOT live in IndexedDB.** They are bundled static
-  data (`data/seedPassages.ts`), read-only, imported at build time. This
-  guarantees seed quality and keeps them versioned in git.
-- **No user data leaves the device.** There is no network write path in
-  this EPIC. Do not add fetch/XHR calls that transmit user or app state.
-  (Analytics and Sentry, when enabled, transmit their own telemetry only;
-  they carry no passage or attempt data.)
-
-Initialization contract: `main.tsx` awaits (or renders a loading state
-while) `openDb()` before rendering interactive content. If `openDb()`
-rejects (e.g. IndexedDB unavailable in a locked-down browser), render
-`ErrorState` in the product's voice with a retry action. The app must not
-crash to a blank page.
-
-### 4. Seed library data contract
-`data/seedPassages.ts` exports a typed array. Each passage:
+Extend `AttemptRecord` in `src/lib/db.ts`:
 
 ```ts
-type LengthBand = "short" | "medium" | "long";
+export type DelayType = "standard" | "micro";
 
-interface SeedPassage {
-  id: string;            // stable slug, e.g. "twain-life-on-the-mississippi-1"
-  title: string;         // work title
-  author: string;        // author full name
-  source: string;        // where it is sourced, e.g. "Project Gutenberg"
-  year: number;          // publication year, MUST be < 1930
-  sentences: string[];   // hand-split, in order, non-empty strings
-  lengthBand: LengthBand;
-  tags: string[];        // optional descriptive tags (e.g. "narrative", "essay")
-  isCustom: false;       // literal false for all seeds
+// Persisted status. "ripe" and "reconstructed" are NOT stored: ripeness is
+// derived from the clock (see attemptState), and reconstruction lands in EPIC 3.
+export type AttemptStatus = "condensing" | "vaulted";
+
+// A frozen copy of the passage this attempt trains on. Embedding it (rather
+// than only referencing a seed id) keeps custom passages private and local,
+// and keeps every attempt stable if the seed library later changes.
+export interface PassageSnapshot {
+  originalPassageId: string | null; // seed slug, or null for a custom passage
+  title: string;
+  author: string;   // "" allowed for custom
+  source: string;   // "" allowed for custom
+  year: number | null;
+  sentences: string[];
+  isCustom: boolean;
+}
+
+export interface AttemptRecord {
+  id: string;
+  status: AttemptStatus;
+  createdAt: number;          // epoch ms
+  passage: PassageSnapshot;
+  hints: string[];            // length === passage.sentences.length; "" until filled
+  cursor: number;             // sentence index to resume condensing at
+  delayType?: DelayType;      // set at vault
+  vaultedAt?: number;         // epoch ms, set at vault
+  vaultedUntil?: number;      // epoch ms, ripe when now >= this; set at vault
 }
 ```
 
-**Length bands** (by sentence count; word count is guidance to keep bands
-honest, and every passage stays within the EPIC 2 cap of ≤400 words / ≤40
-sentences):
-- `short`: 2–4 sentences (~30–90 words). For the future micro-drill.
-- `medium`: 5–9 sentences (~90–220 words).
-- `long`: 10–18 sentences (~220–400 words).
+`SettingRecord` and the `settings` store are unchanged and unused by this EPIC.
 
-**Library invariants (all must hold and are unit-tested):**
-- At least **12** passages total.
-- At least **3** passages with `lengthBand: "short"`.
-- Every passage: `year < 1930`; non-empty `title`, `author`, `source`;
-  `sentences.length >= 2` with no empty/whitespace-only sentence; unique
-  `id`.
-- Each passage's `sentences.length` falls within its declared band's
-  range, and its total word count stays ≤400 and ≤40 sentences.
-- Selection **skews toward still-modern-sounding classics** (concrete,
-  plain prose), not ornate archaic syntax.
+### Delay presets — `src/lib/delays.ts` (new)
 
-**Selection guidance (candidate pool — verify each is pre-1930 and public
-domain, and record the specific work in `source`/`title`):** Mark Twain,
-Robert Louis Stevenson, Abraham Lincoln (speeches/letters), Frederick
-Douglass, Ambrose Bierce, William Hazlitt, Henry David Thoreau, Jonathan
-Swift, Oscar Wilde, Charles Lamb, and Joseph Addison / Richard Steele (The
-Spectator — Franklin's own training material, a fitting nod). Prefer
-passages that read cleanly today. Attribute honestly; if a passage is
-lightly modernized (spelling), note it in `tags`. Do not include anything
-published in 1930 or later, and do not include user-pasted or modern text.
+```ts
+import type { DelayType } from "./db";
 
-The implementer authors the actual passage text. Sweep every seed string
-for the copy tells in the sweep list below (the passages are historical
-prose, so em-dashes inside a quoted classic are the author's, not UI copy;
-the tells apply to UI/microcopy you write, not to the public-domain text
-itself — but do read the seed prose to confirm it reads as intended).
+export const DELAY_PRESETS: Record<DelayType, { label: string; ms: number }> = {
+  standard: { label: "In 3 days", ms: 3 * 24 * 60 * 60 * 1000 },
+  micro: { label: "In 15 minutes", ms: 15 * 60 * 1000 },
+};
 
-### 5. Config, analytics, error tracking (runtime-injectable)
-The factory injects `UMAMI_URL`, `UMAMI_WEBSITE_ID`, and `SENTRY_DSN` as
-**env at deploy time**. A static bundle is built once and deployed with
-varying env, so use **runtime injection**, not only build-time baking:
+export const DEFAULT_DELAY: DelayType = "standard";
+```
 
-- `public/env-config.js` (committed, default empty):
-  ```js
-  window.__APP_CONFIG__ = { UMAMI_URL: "", UMAMI_WEBSITE_ID: "", SENTRY_DSN: "" };
-  ```
-- `index.html` loads it in `<head>` before the app module:
-  `<script src="/env-config.js"></script>`.
-- `docker-entrypoint.sh` regenerates `env-config.js` from container env on
-  startup, then launches nginx:
-  ```sh
-  #!/bin/sh
-  set -e
-  cat > /usr/share/nginx/html/env-config.js <<EOF
-  window.__APP_CONFIG__ = {
-    UMAMI_URL: "${UMAMI_URL:-}",
-    UMAMI_WEBSITE_ID: "${UMAMI_WEBSITE_ID:-}",
-    SENTRY_DSN: "${SENTRY_DSN:-}"
-  };
-  EOF
-  exec nginx -g 'daemon off;'
-  ```
-- `lib/config.ts` reads each value from `window.__APP_CONFIG__` first,
-  falling back to Vite build env (`import.meta.env.VITE_UMAMI_URL`, etc.)
-  so local dev via `.env` also works. Treat empty string as absent.
-- `lib/analytics.ts`: if both `UMAMI_URL` and `UMAMI_WEBSITE_ID` are
-  present, inject `<script defer src="{UMAMI_URL}" data-website-id="{id}">`
-  once. Otherwise do nothing.
-- `lib/observability.ts`: if `SENTRY_DSN` is present, `Sentry.init({ dsn })`
-  (browser/React). Otherwise do nothing. Never log the DSN or any key.
+Exactly two presets, matching the `micro | standard` data model. `standard` is
+the default and the short `micro` option is offered alongside it. The micro
+option here is only a short delay preset. The full micro-drill experience (a
+distractor passage that fills the wait) is EPIC 5 and is out of scope.
 
-**With all three unset the app must run identically and cleanly** (no
-injected script, no Sentry, no console errors). This is an acceptance
-criterion and is unit-tested.
+### Ripeness derivation — `src/lib/attempts.ts` (new)
 
-`.env.example` lists `VITE_UMAMI_URL`, `VITE_UMAMI_WEBSITE_ID`,
-`VITE_SENTRY_DSN` with placeholder values and a comment that real values
-arrive via deploy env. No real secret values in any tracked file.
+```ts
+import type { AttemptRecord } from "./db";
 
-### 6. Routing
-- `/` → `Home` (dashboard shell; empty state this EPIC).
-- `/library` → `Library` (read-only seed browser).
-- `*` → `NotFound` (in-voice 404 with a link home).
+export type AttemptState = "condensing" | "vaulted" | "ripe";
 
-Routes for `/condense`, `/reconstruct`, `/align`, `/ledger`, `/settings`
-are **not** created this EPIC. Do not stub them.
+export function attemptState(a: AttemptRecord, now: number): AttemptState {
+  if (a.status === "condensing") return "condensing";
+  return (a.vaultedUntil ?? Infinity) <= now ? "ripe" : "vaulted";
+}
+```
 
-### 7. Home dashboard shell (`/`)
-- On first load there are no attempts, so `/` renders the **designed empty
-  state**: a heading and one line saying what the app is for, one obvious
-  **primary action**, and a subordinate **"See an example"** entry point.
-- The pipeline-of-attempts view is a later EPIC; this EPIC renders only
-  the empty state. Structure the component so a future "has attempts"
-  branch is a clean addition, but do not build it.
-- Primary action routes to `/library` (the natural first step: pick a
-  passage). It is a real, working destination, not a dead end.
-- "See an example" is the subordinate action (visually secondary). Its
-  behavior this EPIC is defined in §9.
+Pass `now` in (do not call `Date.now()` inside) so it is deterministically
+testable. Also put a small human-readable countdown formatter here, e.g.
+`ripeLabel(vaultedUntil, now): string` returning "Ripe in 2 days" /
+"Ripe in 3 hours" / "Ripe on Sep 17" when far off, and "Ready" when ripe. Keep
+phrasing positive and free of em-dashes.
 
-### 8. `/library` read-only browser
-- Lists all seed passages as cards showing title, author, source, and
-  length band. Grouped or filterable by band (a simple filter control is
-  fine; do not over-build).
-- **Read-only.** No "start an attempt" action (EPIC 2). A card may be
-  expandable to preview the passage text, or not — keep it simple.
-- Loading state uses `Skeleton` to hold layout while data resolves (seed
-  data is synchronous import, so this is mostly the shell's initial paint;
-  still provide the component for consistency and reuse downstream).
-- Fully usable at 390px: cards stack, no horizontal scroll.
+### Sentence segmentation — `src/lib/segment.ts` (new)
 
-### 9. "See an example" this EPIC (no dead end, no EPIC 3 logic)
-The live worked example with a real alignment is EPIC 3. To honor the
-quality bar (no dead ends) without building align logic, "See an example"
-this EPIC opens a short static **"How it works"** panel (modal or route
-section) that explains the loop in 3–4 short steps and shows one real seed
-sentence as an illustration. It performs **no** condense, vault, or diff
-computation. Mark in a code comment that EPIC 3 replaces this target with
-the live worked attempt.
+```ts
+export function segmentSentences(text: string): string[];
+```
 
-This panel is NOT the EPIC 5 guided walkthrough (which anchors to live
-controls step by step). It is a static explainer. Keep it to a few short
-sentences; do not write an onboarding essay.
+Deterministic client-side split, used by paste-your-own (and reused by EPIC 3):
+- Normalize whitespace (collapse runs, trim). Split paragraphs on newlines too.
+- Split on sentence terminators `.`, `!`, `?`, including a trailing closing
+  quote or bracket (`."`, `?"`, `.)`), keeping the terminator attached to the
+  sentence.
+- Guard a small, documented abbreviation list so it does not false-split
+  (`Mr.`, `Mrs.`, `Ms.`, `Dr.`, `St.`, `Jr.`, `Sr.`, `vs.`, `etc.`). This list
+  is intentionally small. Document in a comment that segmentation is a
+  heuristic and edge cases (initials, decimals) may split imperfectly.
+- Drop empty fragments; trim each result.
 
-### 10. Deploy scaffold
-- **Dockerfile** (multi-stage): stage 1 `node` builds (`npm ci` +
-  `npm run build`); stage 2 `nginx:alpine` serves `dist/`, copies
-  `nginx.conf`, `docker-entrypoint.sh`, and the built `env-config.js`
-  target. Entrypoint regenerates config then runs nginx.
-- **nginx.conf**: SPA fallback (`try_files $uri $uri/ /index.html;`),
-  serves on container port `80`; sensible static caching for hashed
-  assets; `env-config.js` served with no-cache so redeploys take effect.
-- **docker-compose.staging.yml**: builds the image, maps a **documented
-  host port** (use `8080:80`), passes `UMAMI_URL`, `UMAMI_WEBSITE_ID`,
-  `SENTRY_DSN`, and `SEED_DEMO` through from env (all optional; app works
-  with them unset). Document the URL (`http://localhost:8080`) in the
-  README.
-- **.dockerignore** excludes `node_modules`, `dist`, `.git`, `.env`.
-- No secrets in any of these files.
+Also export the validation helper used at the paste boundary:
 
-### 11. Suggested UI copy (already swept — ship or improve, keep it clean)
-These are provided so the implementer does not have to invent copy that
-passes the sweep. Improve if you can; keep them tell-free.
-- Home empty-state heading: **"Train against the masters"**
-- Home empty-state line: **"Condense a great passage into hints. Days
-  later, rebuild it from memory and see, sentence by sentence, what you
-  kept and what you lost."**
-- Primary action label: **"Browse passages"**
-- Secondary action label: **"See an example"**
-- Library heading: **"The library"** (or **"Passages"**)
-- 404 copy: **"That page moved. Head back to the library."** with a link.
-- Persistence error: **"This browser blocked local storage. Check your
-  privacy settings and reload."** (adjust wording to the real cause; keep
-  it positive and actionable, no stack trace).
+```ts
+import { MAX_WORDS, MAX_SENTENCES } from "../data/seedPassages.types";
 
-Do not use "—" or "–" in any UI string. Do not use the banned vocabulary.
-Do not phrase empty/error states negatively.
+export const MIN_SENTENCES = 2;
 
----
+export type SegmentResult =
+  | { ok: true; sentences: string[] }
+  | { ok: false; reason: "too-short" | "too-many-sentences" | "too-long"; count: number };
 
-## Ordered task list
+export function segmentAndValidate(text: string): SegmentResult;
+```
 
-Each task lists concrete, testable acceptance criteria (AC).
+Reuse the existing `MAX_WORDS = 400` and `MAX_SENTENCES = 40` from
+`seedPassages.types.ts` and `totalWordCount` from `src/lib/wordCount.ts`.
+`count` carries the offending number so the UI can name it. Order of checks:
+too-short (fewer than `MIN_SENTENCES`), then too-many-sentences, then too-long
+by words.
 
-### T1 — Project skeleton and build
-Scaffold Vite + React + TS, routing, tokens/global CSS, layout shell.
-- **AC1.1** `npm ci && npm run build` produces a `dist/` with no type
-  errors.
-- **AC1.2** `npm run dev` serves the app; `/` renders the layout shell.
-- **AC1.3** Routes `/`, `/library`, and a catch-all `*` resolve; unknown
-  paths render the in-voice 404.
-- **AC1.4** Initial bundle budget: main JS + CSS gzipped **< 200 KB**
-  combined (protects perceived speed). A build-size check asserts this.
+### Calendar export — `src/lib/ics.ts` (new)
 
-### T2 — Local persistence layer
-- **AC2.1** On startup the app opens the `franklins-gym` IndexedDB at
-  version 1, creating the `attempts` (with `by-status`, `by-createdAt`
-  indexes) and `settings` stores.
-- **AC2.2** The `upgrade` path is forward-only (switch on `oldVersion`),
-  written so later versions extend without destroying v1 data.
-- **AC2.3** If the DB fails to open, the app shows the in-voice
-  persistence `ErrorState` with a retry, never a blank page or raw error.
-- **AC2.4** No code path transmits user/app data off-device.
+```ts
+export interface IcsEvent {
+  uid: string;        // stable per attempt, e.g. `${attempt.id}@franklins-gym`
+  start: number;      // epoch ms of the ripe time (DTSTART)
+  stamp: number;      // epoch ms for DTSTAMP (pass Date.now() at call site; a param keeps it testable)
+  title: string;      // e.g. `Rebuild "Walden" in Franklin's Gym`
+  description: string;
+}
 
-### T3 — Seed passage library data
-- **AC3.1** `data/seedPassages.ts` exports ≥ 12 passages matching the
-  `SeedPassage` shape.
-- **AC3.2** ≥ 3 passages are `short`; every passage's sentence count fits
-  its band; every passage ≤ 400 words and ≤ 40 sentences.
-- **AC3.3** Every passage has non-empty `title`, `author`, `source`,
-  `year < 1930`, unique `id`, and ≥ 2 non-empty sentences.
-- **AC3.4** Selection skews toward still-modern-sounding classics
-  (reviewer-checkable; include a short rationale note in the file header
-  comment listing the works and confirming public-domain/pre-1930 status).
+export function buildIcs(event: IcsEvent): string;   // pure, returns iCalendar text
+export function downloadIcs(filename: string, contents: string): void; // Blob + anchor click
+```
 
-### T4 — Home dashboard shell + empty state
-- **AC4.1** `/` renders the designed empty state: a heading, one line
-  naming what the app is for, one visually dominant primary action, and a
-  subordinate "See an example" entry point.
-- **AC4.2** Primary action navigates to `/library` (working destination).
-- **AC4.3** "See an example" opens the static "How it works" panel (§9);
-  it is not a dead end and computes no diff.
-- **AC4.4** `/` shows real content on load (no blank page), usable at
-  390px with no horizontal scroll, touch targets ~44px.
+`buildIcs` requirements:
+- Valid RFC 5545: CRLF (`\r\n`) line breaks, `BEGIN:VCALENDAR` / `VERSION:2.0`
+  / `PRODID:-//Franklin's Gym//EN` / `BEGIN:VEVENT` ... `END:VEVENT` /
+  `END:VCALENDAR`.
+- `VEVENT` carries `UID`, `DTSTAMP`, `DTSTART` (UTC basic format
+  `YYYYMMDDTHHMMSSZ`), `SUMMARY`, `DESCRIPTION`.
+- Escape text values per RFC 5545: backslash, comma, semicolon, and newline in
+  `SUMMARY`/`DESCRIPTION`.
+- The `.ics` carries only the passage title and ripe date, never the passage
+  body or any hint.
 
-### T5 — Library browse screen
-- **AC5.1** `/library` lists all seed passages with title, author, source,
-  and length band, filterable or grouped by band.
-- **AC5.2** Read-only: no attempt-starting action exists.
-- **AC5.3** Usable at 390px (cards stack, no horizontal scroll); loading
-  uses a layout-holding skeleton.
+`downloadIcs` builds a `text/calendar` Blob and triggers a download via a
+temporary anchor. Filename like `franklins-gym-<slug-or-id>.ics`.
 
-### T6 — Analytics & error-tracking wiring
-- **AC6.1** Runtime `env-config.js` + `lib/config.ts` read `UMAMI_URL`,
-  `UMAMI_WEBSITE_ID`, `SENTRY_DSN` (runtime first, Vite env fallback),
-  treating empty as absent.
-- **AC6.2** Umami script injects only when both Umami vars are present;
-  Sentry inits only when the DSN is present.
-- **AC6.3** With all three unset the app runs cleanly: no injected script,
-  no Sentry, no console errors.
-- **AC6.4** No secret or DSN appears in any committed file; `.env` is
-  gitignored; `.env.example` holds placeholders only.
+### Store additions — `src/lib/store.ts`
 
-### T7 — Deploy scaffold
-- **AC7.1** `docker build` produces a production image serving the built
-  app via nginx with SPA fallback.
-- **AC7.2** `docker compose -f docker-compose.staging.yml up` serves the
-  app on the documented host port (`8080`); `GET http://localhost:8080/`
-  returns HTTP 200 with the app HTML, and a deep link (e.g.
-  `/library`) also returns the app (SPA fallback works).
-- **AC7.3** The container starts and serves correctly with
-  `UMAMI_URL`/`UMAMI_WEBSITE_ID`/`SENTRY_DSN`/`SEED_DEMO` all unset, and
-  also when they are set (env injection reflected in `env-config.js`).
-- **AC7.4** No secrets in `Dockerfile`, compose, nginx, or entrypoint.
+Add typed helpers (keep existing `countAttempts`, `listAttempts`,
+`getSetting`, `putSetting`):
 
-### T8 — README for strangers
-- **AC8.1** README states, in plain language (2–3 sentences), what the app
-  is and why it exists.
-- **AC8.2** README gives exact run commands (clone, install, dev; and
-  `docker compose -f docker-compose.staging.yml up` with the
-  `http://localhost:8080` URL) verified against the actual compose files.
-- **AC8.3** README says where the code lives and how to run the tests.
-- **AC8.4** No factory internals, no pipeline jargon.
+```ts
+export async function createAttempt(passage: PassageSnapshot, now: number): Promise<AttemptRecord>;
+// id = crypto.randomUUID(); status "condensing"; createdAt = now;
+// hints = Array(passage.sentences.length).fill(""); cursor = 0. Persists and returns it.
 
-### T9 — Copy sweep (part of DONE)
-- **AC9.1** Every user-visible string (components, routes, empty/error
-  states, 404, "How it works" panel, README UI-facing copy) is free of
-  "—" and "–", the banned LLM vocabulary, and negative empty-state
-  phrasing.
-- **AC9.2** Strings read as written by a person: short, positive, direct.
+export async function getAttempt(id: string): Promise<AttemptRecord | undefined>;
+
+export async function saveHint(id: string, index: number, hint: string): Promise<void>;
+// writes hints[index] and advances cursor to max(cursor, index+1). No-op if not found.
+
+export async function vaultAttempt(id: string, delayType: DelayType, now: number): Promise<AttemptRecord>;
+// status "vaulted"; delayType; vaultedAt = now; vaultedUntil = now + DELAY_PRESETS[delayType].ms.
+```
+
+`listAttempts` already returns rows by `by-createdAt` (ascending). The
+dashboard reverses to show newest first. Pass `now` into `createAttempt` /
+`vaultAttempt` from the caller for testability (callers use `Date.now()`).
+
+### Routes — `src/App.tsx`
+
+Add three routes inside the existing `<Routes>`:
+- `/condense/:attemptId` → `Condense` screen.
+- `/reconstruct/:attemptId` → `ReconstructPlaceholder` (thin seam, see below).
+- Keep `/`, `/library`, and the `*` NotFound.
+
+### Screens and components
+
+**Library start action — `src/routes/Library.tsx`, `src/components/PassageCard.tsx`**
+- Each `PassageCard` gains a primary "Start" action. On click, `Library`
+  builds a `PassageSnapshot` from the seed (`originalPassageId = passage.id`,
+  `isCustom: false`, copying title/author/source/year/sentences),
+  `createAttempt`s it, and navigates to `/condense/:id`. Keep the existing
+  read-only preview.
+- The "Start" control must be the card's one obvious primary action; the
+  preview `<details>` stays visibly subordinate.
+
+**Paste-your-own — a surface on `src/routes/Library.tsx` (new component `src/components/PastePassage.tsx`)**
+- A titled section with a `<textarea>` for the passage and an optional title
+  input (author/source optional; default title "Your passage" when blank).
+- On submit: `segmentAndValidate(text)`. On `ok`, build a custom
+  `PassageSnapshot` (`originalPassageId: null`, `isCustom: true`,
+  `year: null`), `createAttempt`, navigate to condense. On failure, show a
+  designed inline error in the product voice that names the limit and the
+  user's current count, e.g.:
+  - too-short: "Paste at least 2 sentences to train on."
+  - too-many-sentences: "Keep it to 40 sentences. Yours has 46."
+  - too-long: "Trim to 400 words to keep the rebuild focused. Yours has 512."
+- A short line states the cap up front so it is not a surprise, e.g. "Up to
+  400 words, 40 sentences. It stays on this device."
+- No network call. The text never leaves the page except into local IndexedDB.
+
+**Condense screen — `src/routes/Condense.tsx` (new) + `Condense.module.css`**
+- Loads the attempt by `:attemptId` via `getAttempt`. While loading, render the
+  `Skeleton` inside layout (no white flash). If not found, render an
+  `ErrorState` in voice with a link back to the dashboard.
+- **Vault guard (differentiator-critical):** if the loaded attempt's
+  `status === "vaulted"`, do NOT render any sentence. Redirect to `/` (or show a
+  short in-voice note with a link home). The original is never shown after
+  vaulting.
+- Presents ONE original sentence at a time: a progress indicator ("Sentence 3
+  of 8"), the current original sentence (read-only), and a hint input labeled
+  clearly (e.g. label "Your hint", placeholder "A few words to trigger this
+  sentence later").
+- Navigation: "Back" and "Next". Advancing (or blurring) persists the current
+  hint via `saveHint` so progress survives reload; on return the screen resumes
+  at `cursor`. A hint may be left blank; blank hints are allowed (the user
+  chooses how much to lean on memory).
+- On the last sentence the primary action is "Finish and vault", which opens a
+  delay chooser (inline panel or step, not a new route): the two presets from
+  `DELAY_PRESETS` with `standard` preselected, and a confirm "Vault it". Confirm
+  calls `vaultAttempt` and navigates to `/`.
+- Give the primary action a pressed/disabled state during the write so the tap
+  feels immediate (feedback within 100ms).
+
+**Home dashboard — `src/routes/Home.tsx` (extend) + a new `src/components/AttemptCard.tsx`**
+- On mount, load attempts (`listAttempts`, reversed to newest first). While
+  loading, show `Skeleton`. On read error, show `ErrorState` with a retry.
+- If there are no attempts, render the existing `EmptyState` unchanged (its
+  "See an example" panel stays).
+- If there are attempts, render a "Your attempts" pipeline list of
+  `AttemptCard`s plus a persistent way to start another (a "Browse passages"
+  link). Compute `attemptState(record, Date.now())` per card:
+  - **condensing**: chip "Condensing", subtext progress (e.g. "3 of 8 hinted"),
+    primary action "Resume" to `/condense/:id`.
+  - **vaulted**: chip "Vaulted", subtext the `ripeLabel` countdown/date,
+    secondary action "Add to calendar" that builds the event and calls
+    `downloadIcs`. The passage body is never shown, only title and author.
+  - **ripe**: visibly elevated as the primary thing to do (chip "Ready",
+    prominent primary button "Rebuild" to `/reconstruct/:id`). This is what
+    "ripe attempts are clearly actionable" means.
+- Cap the rendered list at a sane number (e.g. 50, newest first) so it never
+  grows unbounded; note in a comment that full paginated history is EPIC 4.
+- Never render `passage.sentences` for a vaulted attempt on this screen.
+
+**Reconstruct placeholder — `src/routes/ReconstructPlaceholder.tsx` (new)**
+- The minimum needed so a ripe "Rebuild" button is not a dead link. It loads
+  the attempt, and renders a short in-voice message that the rebuild step is
+  next, with the passage title and a link back to the dashboard. Positive
+  phrasing, no em-dashes, e.g. heading "Rebuild", body "Your hints are saved
+  and ready. The rebuild step opens next.", link "Back to your attempts".
+- **It MUST NOT render `passage.sentences`** (the vault holds even here).
+- EPIC 3 replaces this file with the real reconstruct screen. It is the only
+  forward seam this EPIC touches, justified by the no-dead-end quality bar.
 
 ---
 
-## Test plan (which automated tests prove each planner criterion)
+## QUALITY BAR application (binding on the new surfaces)
 
-Framework: Vitest + `@testing-library/react` + `fake-indexeddb`; one
-Playwright smoke spec. Every test runs in the foreground to completion.
-
-| Planner acceptance criterion | Test(s) |
-|---|---|
-| App builds and runs; Dockerfile + `docker compose -f docker-compose.staging.yml up` serves on the documented port | `npm run build` succeeds in CI (AC1.1). Bundle-size check (AC1.4). Playwright smoke loads `/` and asserts the home heading is visible. **Manual/scripted integration:** `docker build` then `docker compose -f docker-compose.staging.yml up -d`, `curl -sf http://localhost:8080/` returns 200 with app HTML, `curl -sf http://localhost:8080/library` returns the app (SPA fallback). Record the result in the run summary. |
-| Home shows real content within ~1s (no blank page), usable at 390px with no horizontal scroll | Playwright smoke at 390×844: assert the home heading and primary action are visible on load (proves non-blank), and `document.documentElement.scrollWidth <= window.innerWidth` (no horizontal scroll). Bundle-size budget test guards the ~1s render as an honest proxy. |
-| Seed library ≥12 passages, segmented, tagged short/medium/long, title/author/source, ≥3 short, skew to modern classics | Vitest `seedPassages` invariant suite: count ≥12; ≥3 `short`; each has non-empty title/author/source, `year < 1930`, unique id, ≥2 non-empty sentences; sentence count within band; ≤400 words / ≤40 sentences. Skew-to-modern is a reviewer judgment aided by the file-header rationale. |
-| Home empty state names the app's purpose, one primary action, plus "See an example" | Component test: `/` renders the heading and purpose line, exactly one primary action that links to `/library`, and a subordinate "See an example" control that opens the "How it works" panel. |
-| Umami via `UMAMI_WEBSITE_ID`/`UMAMI_URL` and Sentry via `SENTRY_DSN` from env, uncommitted; app runs with all unset | Config/analytics unit tests: with vars set, `analytics` injects the Umami script and `observability` calls `Sentry.init`; with all unset, neither fires and no error is thrown. Grep-based test (or CI check) asserts no DSN/secret literals in tracked files and `.env` is gitignored. |
-| Local persistence initialized; no user data leaves device | Persistence unit test with `fake-indexeddb`: `openDb()` resolves and creates `attempts` (+ indexes) and `settings`; forward-only upgrade path invoked with `oldVersion`. Error-path test: a failing open renders `ErrorState`. Static assertion: no fetch/XHR transmits app data (code review + no network module present). |
-
-Additional (quality-bar) automated checks: copy-sweep test that scans
-`src/**` user-visible strings and README for "—"/"–", the banned
-vocabulary list, and negative empty-state phrases, failing on any hit.
+- **Perceived speed.** All reads/writes are local IndexedDB. Every primary
+  action (Start, Next, Finish and vault, Add to calendar) gives visible
+  feedback within 100ms (pressed/disabled state or immediate navigation). No
+  new screen shows a white flash: loading uses `Skeleton` inside `AppLayout`.
+- **Mobile-first (390px).** Condense (sentence + input + nav), the dashboard
+  pipeline, the delay chooser, and paste-your-own are all fully usable at 390px
+  with no horizontal scroll. Touch targets ~44px. The e2e viewport is already
+  390px; keep it green.
+- **Designed states.** Every new screen has designed empty, loading, and error
+  states: dashboard uses the existing empty state; condense/reconstruct show a
+  `Skeleton` while loading and an in-voice `ErrorState` for a missing attempt.
+  Paste errors are designed inline messages, never raw validation dumps.
+- **First-run.** The screens are self-explanatory: one obvious primary action
+  each, real examples/defaults (standard delay preselected, cap stated up
+  front). The guided step-by-step walkthrough and the same-day micro-drill are
+  EPIC 5 and are NOT built here.
+- **Security hygiene.** No server, so auth/rate-limit clauses have no route.
+  What binds and is in scope: validate pasted input at the boundary (min/max
+  sentences, max words) before it is stored; render all user text as escaped
+  React text nodes; keep everything local (no upload); keep no passage or hint
+  text in logs or analytics; secrets stay in env (unchanged from EPIC 1).
+- **Accessibility.** Progress indicator is announced (e.g. `aria-live` or a
+  labeled heading). The hint input is labeled. The delay chooser is a labeled
+  radio group. State chips convey status by text, not color alone. Visible
+  focus states; full keyboard reach through condense, the chooser, and the
+  dashboard actions.
+- **Copy.** Every new visible string is positive, plain, one idea per sentence,
+  with no em-dashes/en-dashes and none of the banned LLM vocabulary. The
+  existing `src/test/copy-sweep.test.ts` auto-scans new `src` files, so new copy
+  is enforced. Sweep example copy in this spec before shipping it too.
 
 ---
 
-## Definition of done
-- All T1–T9 acceptance criteria met; all automated tests pass in the
-  foreground.
-- `docker compose -f docker-compose.staging.yml up` verified serving on
-  `http://localhost:8080` with env set and unset.
-- Copy sweep run and clean.
-- README verified against the compose files.
-- No non-goal built; no route or module created for later-EPIC logic.
-- No secrets in tracked files.
+## Ordered task list (each item is provable)
+
+1. **Data model + store.** Extend `AttemptRecord` and add `DelayType`,
+   `AttemptStatus`, `PassageSnapshot` in `db.ts` (no `DB_VERSION` bump). Add
+   `createAttempt`, `getAttempt`, `saveHint`, `vaultAttempt` to `store.ts`.
+   - AC: `createAttempt` stores a `condensing` record with `hints` sized to the
+     passage and `cursor = 0`; `getAttempt` returns it; `saveHint` writes the
+     right index and advances `cursor`; `vaultAttempt` sets `vaulted`,
+     `vaultedAt`, and `vaultedUntil = now + preset.ms`. All survive a simulated
+     reopen (fake-indexeddb).
+
+2. **Delays + ripeness helpers.** Add `src/lib/delays.ts` and
+   `src/lib/attempts.ts`.
+   - AC: `attemptState` returns `condensing` for a condensing record, `vaulted`
+     when `now < vaultedUntil`, `ripe` when `now >= vaultedUntil`. `ripeLabel`
+     renders positive, dash-free countdown/date strings. `DEFAULT_DELAY` is
+     `standard`; both presets exist.
+
+3. **Segmentation + validation.** Add `src/lib/segment.ts`.
+   - AC: `segmentSentences` splits multi-sentence text correctly, keeps
+     terminators, and does not false-split the documented abbreviations.
+     `segmentAndValidate` returns `too-short` below 2 sentences,
+     `too-many-sentences` above 40, `too-long` above 400 words, with the
+     offending `count`, and `ok` with sentences otherwise.
+
+4. **Calendar export.** Add `src/lib/ics.ts`.
+   - AC: `buildIcs` returns valid iCalendar (VCALENDAR/VEVENT with UID, DTSTAMP,
+     DTSTART in UTC basic format, SUMMARY, DESCRIPTION), CRLF line endings, and
+     escapes commas/semicolons/backslashes/newlines. `DTSTART` equals the passed
+     ripe time. The output contains no passage body text.
+
+5. **Start an attempt (library + paste).** Add "Start" to `PassageCard`, wire
+   `Library` to create + navigate, add `PastePassage` with cap messaging and
+   validation.
+   - AC: starting from a seed passage creates a `condensing` attempt embedding
+     that passage and lands on `/condense/:id`. Pasting valid text does the same
+     with a custom snapshot. Pasting over-cap or too-short text shows the
+     designed in-voice error and creates nothing.
+
+6. **Condense screen.** Add `Condense.tsx` + route. One sentence at a time,
+   hint capture, save-as-you-go, resume at cursor, finish -> delay chooser ->
+   vault. Loading/not-found/vault-guard states.
+   - AC: shows one original sentence with progress; typing a hint and advancing
+     persists it (reload resumes at cursor); finishing opens the two-preset
+     chooser with `standard` preselected; confirming vaults and returns to `/`.
+     Opening `/condense/:id` for a vaulted attempt renders no sentence.
+
+7. **Dashboard pipeline.** Extend `Home.tsx`, add `AttemptCard`. Load attempts,
+   render empty vs pipeline, three states, ripe elevated, vaulted "Add to
+   calendar", condensing "Resume".
+   - AC: with no attempts the existing empty state shows; with attempts, each
+     renders its correct state; a vaulted card shows a countdown/ripe date and
+     downloads a valid `.ics`; a ripe card shows a prominent "Rebuild" primary
+     action; no vaulted card renders passage sentences.
+
+8. **Reconstruct seam.** Add `ReconstructPlaceholder.tsx` + route so "Rebuild"
+   is not a dead link and does not leak the original.
+   - AC: `/reconstruct/:id` renders an in-voice next-step message with a link
+     back and never renders `passage.sentences`.
+
+9. **Reload durability + copy sweep.** Confirm all state survives reload and the
+   copy sweep passes.
+   - AC: `npm test` (which includes `copy-sweep.test.ts`) passes; a manual/e2e
+     reload after condensing and after vaulting restores the same state.
+
+---
+
+## Test plan (which test proves each criterion)
+
+Unit (Vitest, colocated `*.test.ts`):
+- `segment.test.ts`: multi-sentence split, terminator retention, abbreviation
+  guard, and each `segmentAndValidate` branch (too-short / too-many / too-long /
+  ok) with the reported `count`. Proves AC 3 and the paste cap in AC 5.
+- `ics.test.ts`: required VEVENT properties present, CRLF endings, UTC DTSTART
+  equals the ripe time, RFC-5545 escaping of comma/semicolon/backslash/newline,
+  and that no passage body leaks into the output. Proves AC 4 and the `.ics`
+  part of AC 7.
+- `attempts.test.ts`: `attemptState` transitions across `now` and `ripeLabel`
+  strings (positive, dash-free). Proves the state derivation behind AC 7.
+- `store.test.ts` (extend, fake-indexeddb): `createAttempt` / `getAttempt` /
+  `saveHint` (index + cursor) / `vaultAttempt` (status + `vaultedUntil`) and
+  persistence across a store reopen. Proves AC 1 and "state survives reload".
+
+Component (Testing Library):
+- `Condense.test.tsx`: renders one sentence with progress, captures and persists
+  a hint, resumes at cursor, finish opens the chooser with `standard`
+  preselected, confirm vaults; a vaulted attempt renders no sentence (vault
+  guard). Proves AC 6.
+- `Library.test.tsx` (extend): "Start" on a seed card creates an attempt and
+  navigates to condense. `PastePassage.test.tsx`: valid paste creates a custom
+  attempt and navigates; over-cap and too-short show the designed error and
+  create nothing. Proves AC 5.
+- `Home.test.tsx` (extend): empty vs pipeline; condensing/vaulted/ripe cards
+  render their state; "Add to calendar" invokes the ics download; ripe shows the
+  elevated "Rebuild" action; vaulted cards show no passage body. Proves AC 7.
+- `ReconstructPlaceholder.test.tsx`: renders the next-step message and a link
+  back, and never renders passage sentences. Proves AC 8.
+
+E2E (Playwright, `e2e/`, 390px viewport):
+- Extend the smoke suite: start an attempt from the library, add one hint,
+  reload, confirm it resumes; finish and vault with the micro preset, confirm
+  the dashboard shows a vaulted state; confirm no horizontal scroll on the new
+  screens. Proves the mobile and reload clauses and AC 6/7 end to end. Do not
+  assert on the real 15-minute wait; assert the vaulted state renders (ripeness
+  timing is covered deterministically by `attempts.test.ts`).
+
+Copy: `src/test/copy-sweep.test.ts` already scans new `src` files for dashes,
+banned vocabulary, and negative phrasing; keep it green. Proves the copy clause.
+
+---
+
+## Notes for the implementer
+- Do not bump `DB_VERSION`. Adding record fields is a schemaless change; a bump
+  would trigger an unnecessary upgrade path.
+- Pass `now` into store/helper functions from the caller (callers use
+  `Date.now()`), so tests stay deterministic.
+- The vault guard is the single most important correctness point in this EPIC.
+  A test that a vaulted attempt renders no original sentence on condense,
+  dashboard, and reconstruct is non-negotiable.
+- Do not start EPIC 3: no writing surface that accepts a rebuild, no diff, no
+  metrics. The reconstruct route is a placeholder only.
+- Keep the two delay presets. Do not add a settings screen or persist a chosen
+  default; that is later scope.

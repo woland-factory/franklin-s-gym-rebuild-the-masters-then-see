@@ -3,12 +3,39 @@ import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 export const DB_NAME = "franklins-gym";
 export const DB_VERSION = 1;
 
-// Attempt records are written by later stages of the loop. The store exists from
-// v1 so future schema versions extend it forward without rewriting v1 data.
+export type DelayType = "standard" | "micro";
+
+// Persisted status. "ripe" and "reconstructed" are NOT stored: ripeness is
+// derived from the clock (see attemptState), and reconstruction lands later.
+export type AttemptStatus = "condensing" | "vaulted";
+
+// A frozen copy of the passage this attempt trains on. Embedding it (rather
+// than only referencing a seed id) keeps custom passages private and local,
+// and keeps every attempt stable if the seed library later changes.
+export interface PassageSnapshot {
+  originalPassageId: string | null; // seed slug, or null for a custom passage
+  title: string;
+  author: string; // "" allowed for custom
+  source: string; // "" allowed for custom
+  year: number | null;
+  sentences: string[];
+  isCustom: boolean;
+}
+
+// Attempt records carry the passage snapshot, the hints written while
+// condensing, and the vault timing once vaulted. Records are schemaless per
+// row: older rows without the newer fields are tolerated by treating the
+// absent fields as unset.
 export interface AttemptRecord {
   id: string;
-  status: string;
-  createdAt: number;
+  status: AttemptStatus;
+  createdAt: number; // epoch ms
+  passage: PassageSnapshot;
+  hints: string[]; // length === passage.sentences.length; "" until filled
+  cursor: number; // sentence index to resume condensing at
+  delayType?: DelayType; // set at vault
+  vaultedAt?: number; // epoch ms, set at vault
+  vaultedUntil?: number; // epoch ms, ripe when now >= this; set at vault
 }
 
 export interface SettingRecord {
