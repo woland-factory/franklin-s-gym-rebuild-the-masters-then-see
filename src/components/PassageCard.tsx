@@ -3,6 +3,8 @@ import styles from "./PassageCard.module.css";
 
 interface PassageCardProps {
   passage: SeedPassage;
+  onStart: () => void;
+  starting?: boolean;
 }
 
 const BAND_LABEL: Record<SeedPassage["lengthBand"], string> = {
@@ -11,9 +13,9 @@ const BAND_LABEL: Record<SeedPassage["lengthBand"], string> = {
   long: "Long",
 };
 
-// One seed passage: title, author, source, and length band, with an expandable
-// preview. Read-only in this release.
-export function PassageCard({ passage }: PassageCardProps) {
+// One seed passage: title, author, source, and length band. "Start" is the
+// card's one primary action; the preview stays visibly subordinate.
+export function PassageCard({ passage, onStart, starting = false }: PassageCardProps) {
   const { title, author, source, year, lengthBand, sentences } = passage;
   return (
     <article className={styles.card}>
@@ -33,6 +35,14 @@ export function PassageCard({ passage }: PassageCardProps) {
         <p className={styles.preview}>{sentences.join(" ")}</p>
       </details>
       <p className={styles.source}>Source: {source}</p>
+      <button
+        type="button"
+        className={`btn btn-primary ${styles.start}`}
+        onClick={onStart}
+        disabled={starting}
+      >
+        {starting ? "Starting" : "Start"}
+      </button>
     </article>
   );
 }
