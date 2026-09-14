@@ -8,9 +8,12 @@ rebuild it from memory. The tool lays your version beside the original, sentence
 by sentence, so you can see exactly what you kept and what you lost. Everything
 stays on your device. There is no account and no server.
 
-This release is the foundation: the app shell, a curated library of
-public-domain passages, and local persistence. The condense, rebuild, and
-alignment steps arrive in later releases.
+This release covers the front half of the loop. You start an attempt from a
+library passage or your own pasted text, condense it into hints one sentence at
+a time, and vault the original behind a delay so memory does the work. The
+dashboard tracks each attempt from condensing to vaulted to ripe, and exports a
+calendar reminder for the ripe date. The rebuild and alignment steps arrive in
+later releases.
 
 ## Run it
 
@@ -58,11 +61,13 @@ behind a shared reverse proxy and does not publish a host port, so use the
 
 ## How the code is laid out
 
-- `src/routes/` screens: the home dashboard, the library browser, the 404.
+- `src/routes/` screens: the home dashboard, the library browser, the condense
+  screen, the reconstruct seam, and the 404.
 - `src/components/` shared UI: layout, empty state, error state, skeleton,
-  passage card, and the "How it works" panel.
+  passage card, attempt card, paste-your-own, and the "How it works" panel.
 - `src/data/` the curated seed passages and their types.
-- `src/lib/` local persistence (IndexedDB), the typed data store, runtime
+- `src/lib/` local persistence (IndexedDB), the typed data store, sentence
+  segmentation, delay presets, ripeness helpers, calendar export, runtime
   config, analytics, and error-tracking wiring.
 - `src/styles/` design tokens and global CSS.
 - `e2e/` Playwright smoke tests.
