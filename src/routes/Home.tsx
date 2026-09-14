@@ -47,7 +47,7 @@ export function Home() {
     return (
       <ErrorState
         title="Your attempts did not load"
-        message="Check your connection and try again."
+        message="This device blocked local storage. Allow it, then try again."
         actionLabel="Try again"
         onAction={load}
       />
