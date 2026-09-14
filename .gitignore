@@ -19,3 +19,6 @@ test-results
 
 # TS build info
 *.tsbuildinfo
+
+# Local artifacts (screenshots, etc.)
+artifacts
