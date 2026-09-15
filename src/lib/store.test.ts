@@ -7,9 +7,11 @@ import {
   getAttempt,
   listAttempts,
   saveHint,
+  saveReconstruction,
   vaultAttempt,
 } from "./store";
 import { DELAY_PRESETS } from "./delays";
+import { alignSentences } from "./align";
 
 // A fresh in-memory factory per test isolates each case from prior state.
 beforeEach(() => {
@@ -74,6 +76,39 @@ describe("vaultAttempt", () => {
     expect(vaulted.delayType).toBe("standard");
     expect(vaulted.vaultedAt).toBe(5000);
     expect(vaulted.vaultedUntil).toBe(5000 + DELAY_PRESETS.standard.ms);
+  });
+});
+
+describe("saveReconstruction", () => {
+  it("sets the terminal status, the rebuild text, the timestamp, and the alignment", async () => {
+    const created = await createAttempt(passage, 1000);
+    await vaultAttempt(created.id, "micro", 2000);
+    const alignment = alignSentences(passage.sentences, ["First sentence."]);
+
+    const saved = await saveReconstruction(created.id, "First sentence.", alignment, 9000);
+    expect(saved.status).toBe("reconstructed");
+    expect(saved.reconstructionText).toBe("First sentence.");
+    expect(saved.reconstructedAt).toBe(9000);
+    expect(saved.alignment).toEqual(alignment);
+  });
+
+  it("survives a fresh connection, ready for the ledger", async () => {
+    const created = await createAttempt(passage, 1000);
+    await vaultAttempt(created.id, "micro", 2000);
+    const alignment = alignSentences(passage.sentences, ["First sentence."]);
+    await saveReconstruction(created.id, "First sentence.", alignment, 9000);
+
+    resetDbConnection();
+
+    const loaded = await getAttempt(created.id);
+    expect(loaded?.status).toBe("reconstructed");
+    expect(loaded?.reconstructedAt).toBe(9000);
+    expect(loaded?.alignment).toEqual(alignment);
+  });
+
+  it("throws for an unknown attempt", async () => {
+    const alignment = alignSentences(["A."], ["A."]);
+    await expect(saveReconstruction("missing", "A.", alignment, 1)).rejects.toThrow();
   });
 });
 

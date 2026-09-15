@@ -5,9 +5,37 @@ export const DB_VERSION = 1;
 
 export type DelayType = "standard" | "micro";
 
-// Persisted status. "ripe" and "reconstructed" are NOT stored: ripeness is
-// derived from the clock (see attemptState), and reconstruction lands later.
-export type AttemptStatus = "condensing" | "vaulted";
+// Persisted status. "reconstructed" is terminal: the user rebuilt the passage
+// and the alignment is saved. "ripe" is NOT stored: ripeness is derived from
+// the clock (see attemptState).
+export type AttemptStatus = "condensing" | "vaulted" | "reconstructed";
+
+// Alignment result, cached on the attempt so the view (and the later ledger)
+// renders without a recompute. Versioned for forward compatibility.
+export type MatchType = "matched" | "omission" | "addition";
+export type SpanKind = "same" | "onlyInOriginal" | "onlyInYours";
+
+export interface DiffSpan {
+  text: string; // one display word (with its punctuation), as typed
+  kind: SpanKind;
+}
+
+export interface AlignmentPair {
+  matchType: MatchType;
+  original: string | null; // original sentence; null for an addition
+  your: string | null; // your sentence; null for an omission
+  originalSpans: DiffSpan[] | null; // word marks, original side; matched pairs only
+  yourSpans: DiffSpan[] | null; // word marks, your side; matched pairs only
+  originalWords: number; // word count of the original sentence, else 0
+  yourWords: number; // word count of your sentence, else 0
+  lengthDelta: number; // yourWords - originalWords
+  similarity: number; // [0,1] for matched pairs; 0 for omission/addition
+}
+
+export interface Alignment {
+  version: 1;
+  pairs: AlignmentPair[];
+}
 
 // A frozen copy of the passage this attempt trains on. Embedding it (rather
 // than only referencing a seed id) keeps custom passages private and local,
@@ -36,6 +64,9 @@ export interface AttemptRecord {
   delayType?: DelayType; // set at vault
   vaultedAt?: number; // epoch ms, set at vault
   vaultedUntil?: number; // epoch ms, ripe when now >= this; set at vault
+  reconstructionText?: string; // the raw rebuild the user typed; set at submit
+  reconstructedAt?: number; // epoch ms, set at submit
+  alignment?: Alignment; // cached alignment, set at submit
 }
 
 export interface SettingRecord {

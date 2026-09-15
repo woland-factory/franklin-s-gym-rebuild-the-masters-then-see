@@ -42,6 +42,12 @@ describe("attemptState", () => {
     expect(attemptState(a, 5000)).toBe("ripe");
     expect(attemptState(a, 6000)).toBe("ripe");
   });
+
+  it("is reconstructed once the record is terminal, regardless of the clock", () => {
+    const a = record({ status: "reconstructed", vaultedUntil: 5000 });
+    expect(attemptState(a, 0)).toBe("reconstructed");
+    expect(attemptState(a, 10_000)).toBe("reconstructed");
+  });
 });
 
 describe("ripeLabel", () => {

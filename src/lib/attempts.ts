@@ -1,6 +1,6 @@
 import type { AttemptRecord } from "./db";
 
-export type AttemptState = "condensing" | "vaulted" | "ripe";
+export type AttemptState = "condensing" | "vaulted" | "ripe" | "reconstructed";
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
@@ -24,6 +24,7 @@ const MONTHS = [
 // Ripeness is derived from the clock, never stored. Pass `now` in so the
 // derivation stays deterministic and testable.
 export function attemptState(a: AttemptRecord, now: number): AttemptState {
+  if (a.status === "reconstructed") return "reconstructed";
   if (a.status === "condensing") return "condensing";
   return (a.vaultedUntil ?? Infinity) <= now ? "ripe" : "vaulted";
 }

@@ -1,5 +1,6 @@
 import {
   openDb,
+  type Alignment,
   type AttemptRecord,
   type DelayType,
   type PassageSnapshot,
@@ -68,6 +69,27 @@ export async function vaultAttempt(
   attempt.delayType = delayType;
   attempt.vaultedAt = now;
   attempt.vaultedUntil = now + DELAY_PRESETS[delayType].ms;
+  await db.put("attempts", attempt);
+  return attempt;
+}
+
+// Saves a submitted rebuild and its precomputed alignment onto the attempt.
+// Terminal for the loop: status becomes "reconstructed". The caller computes
+// the alignment (see lib/align.ts) so this stays a thin persistence layer.
+// `now` is passed in for testability.
+export async function saveReconstruction(
+  id: string,
+  reconstructionText: string,
+  alignment: Alignment,
+  now: number,
+): Promise<AttemptRecord> {
+  const db = await openDb();
+  const attempt = await db.get("attempts", id);
+  if (!attempt) throw new Error("Attempt not found");
+  attempt.status = "reconstructed";
+  attempt.reconstructionText = reconstructionText;
+  attempt.reconstructedAt = now;
+  attempt.alignment = alignment;
   await db.put("attempts", attempt);
   return attempt;
 }
