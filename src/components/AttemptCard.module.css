@@ -61,3 +61,9 @@
   margin-top: var(--space-2);
   width: 100%;
 }
+
+/* A finished attempt reads as settled: quiet chip, regular card. */
+.chip[data-state="reconstructed"] {
+  color: var(--color-text);
+  background: var(--color-surface-2);
+}

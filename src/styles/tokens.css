@@ -45,6 +45,10 @@
   --color-accent-contrast: #ffffff;
   --color-focus: #7a2e1d;
 
+  /* Alignment marks: two neutral, distinct hues. Differences, never a verdict. */
+  --color-mark-original: #d8e3f4;
+  --color-mark-yours: #f1e0bd;
+
   --shadow-sm: 0 1px 2px rgba(28, 27, 24, 0.06);
   --shadow-md: 0 4px 16px rgba(28, 27, 24, 0.08);
 }
@@ -61,6 +65,9 @@
     --color-accent-hover: #eaa585;
     --color-accent-contrast: #17140f;
     --color-focus: #e0916f;
+
+    --color-mark-original: #2f3f5e;
+    --color-mark-yours: #524222;
 
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);

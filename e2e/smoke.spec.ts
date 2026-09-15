@@ -26,11 +26,27 @@ test.describe("first render at 390px", () => {
     expect(overflow).toBe(true);
   });
 
-  test("see an example opens the how it works panel", async ({ page }) => {
+  test("the worked example shows a populated alignment", async ({ page }) => {
+    await page.goto("/example");
+
+    // The legend and real marks are visible: the demo yields genuine findings.
+    await expect(page.getByText("In the original", { exact: true })).toBeVisible();
+    await expect(page.getByText("In yours", { exact: true })).toBeVisible();
+    await expect(page.locator("mark").first()).toBeVisible();
+    await expect(page.getByText("Only in the original", { exact: true })).toBeVisible();
+    await expect(page.getByText("Only in yours", { exact: true })).toBeVisible();
+
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    );
+    expect(overflow).toBe(true);
+  });
+
+  test("the empty state links to the worked example", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("button", { name: /see an example/i }).click();
-    await expect(page.getByRole("dialog")).toBeVisible();
-    await expect(page.getByRole("heading", { name: /how it works/i })).toBeVisible();
+    await page.getByRole("link", { name: /see an example/i }).click();
+    await expect(page).toHaveURL(/\/example$/);
+    await expect(page.getByText("In the original", { exact: true })).toBeVisible();
   });
 });
 

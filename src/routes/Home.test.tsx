@@ -5,7 +5,8 @@ import { MemoryRouter } from "react-router-dom";
 import { IDBFactory } from "fake-indexeddb";
 import { Home } from "./Home";
 import { resetDbConnection, type PassageSnapshot } from "../lib/db";
-import { createAttempt, saveHint, vaultAttempt } from "../lib/store";
+import { createAttempt, saveHint, saveReconstruction, vaultAttempt } from "../lib/store";
+import { alignSentences } from "../lib/align";
 
 // downloadIcs is stubbed so the "Add to calendar" action can be asserted without
 // a real browser download. buildIcs stays real so a valid file is still built.
@@ -52,8 +53,10 @@ describe("Home dashboard", () => {
       "href",
       "/library",
     );
-    await userEvent.click(screen.getByRole("button", { name: /see an example/i }));
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /see an example/i })).toHaveAttribute(
+      "href",
+      "/example",
+    );
   });
 
   it("shows a condensing attempt with progress and a resume action", async () => {
@@ -85,6 +88,23 @@ describe("Home dashboard", () => {
     const [, contents] = vi.mocked(downloadIcs).mock.calls[0];
     expect(contents).toContain("BEGIN:VCALENDAR");
     expect(contents).not.toContain("SECRET ORIGINAL");
+  });
+
+  it("shows a reconstructed attempt with the Aligned chip and a see-alignment action", async () => {
+    const created = await createAttempt(passage(), Date.now());
+    await vaultAttempt(created.id, "micro", 0);
+    const alignment = alignSentences(passage().sentences, ["My rebuild of it."]);
+    await saveReconstruction(created.id, "My rebuild of it.", alignment, Date.now());
+
+    renderHome();
+    const card = await screen.findByRole("article");
+    expect(within(card).getByText("Aligned")).toBeInTheDocument();
+    expect(within(card).getByText(/rebuilt and aligned/i)).toBeInTheDocument();
+    expect(within(card).getByRole("link", { name: /see alignment/i })).toHaveAttribute(
+      "href",
+      `/align/${created.id}`,
+    );
+    expect(screen.queryByText(/SECRET ORIGINAL/)).toBeNull();
   });
 
   it("elevates a ripe attempt with a prominent rebuild action", async () => {

@@ -1,0 +1,12 @@
+.back {
+  max-width: var(--container-max);
+  margin: var(--space-5) auto 0;
+  display: flex;
+}
+
+.back a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-target);
+  font-weight: 600;
+}

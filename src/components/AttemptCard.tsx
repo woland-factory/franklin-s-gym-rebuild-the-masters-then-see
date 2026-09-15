@@ -13,6 +13,7 @@ const STATE_LABEL = {
   condensing: "Condensing",
   vaulted: "Vaulted",
   ripe: "Ready",
+  reconstructed: "Aligned",
 } as const;
 
 function hintedCount(attempt: AttemptRecord): number {
@@ -80,6 +81,15 @@ export function AttemptCard({ attempt, now }: AttemptCardProps) {
           <p className={styles.sub}>The vault is open. Rebuild it from your hints.</p>
           <Link to={`/reconstruct/${attempt.id}`} className={`btn btn-primary ${styles.action}`}>
             Rebuild
+          </Link>
+        </>
+      )}
+
+      {state === "reconstructed" && (
+        <>
+          <p className={styles.sub}>Rebuilt and aligned.</p>
+          <Link to={`/align/${attempt.id}`} className={`btn btn-primary ${styles.action}`}>
+            See alignment
           </Link>
         </>
       )}

@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { AttemptCard } from "../components/AttemptCard";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
-import { HowItWorks } from "../components/HowItWorks";
 import { Skeleton } from "../components/Skeleton";
 import { attemptState } from "../lib/attempts";
 import type { AttemptRecord } from "../lib/db";
@@ -16,7 +15,6 @@ type LoadStatus = "loading" | "ready" | "error";
 // and a pipeline of attempt cards once there are any. Ripe attempts sort to the
 // top so the next thing to do is first.
 export function Home() {
-  const [showExample, setShowExample] = useState(false);
   const [attempts, setAttempts] = useState<AttemptRecord[]>([]);
   const [status, setStatus] = useState<LoadStatus>("loading");
 
@@ -56,23 +54,16 @@ export function Home() {
 
   if (attempts.length === 0) {
     return (
-      <>
-        <EmptyState
-          title="Train against the masters"
-          description="Condense a great passage into hints. Days later, rebuild it from memory and see, sentence by sentence, what you kept and what you lost."
-          primary={
-            <Link to="/library" className="btn btn-primary">
-              Browse passages
-            </Link>
-          }
-          secondary={
-            <button type="button" onClick={() => setShowExample(true)}>
-              See an example
-            </button>
-          }
-        />
-        {showExample && <HowItWorks onClose={() => setShowExample(false)} />}
-      </>
+      <EmptyState
+        title="Train against the masters"
+        description="Condense a great passage into hints. Days later, rebuild it from memory and see, sentence by sentence, what you kept and what you lost."
+        primary={
+          <Link to="/library" className="btn btn-primary">
+            Browse passages
+          </Link>
+        }
+        secondary={<Link to="/example">See an example</Link>}
+      />
     );
   }
 

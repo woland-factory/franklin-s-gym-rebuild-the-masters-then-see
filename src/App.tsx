@@ -1,10 +1,12 @@
 import { Route, Routes } from "react-router-dom";
 import { AppLayout } from "./components/AppLayout";
+import { Align } from "./routes/Align";
 import { Condense } from "./routes/Condense";
 import { Home } from "./routes/Home";
 import { Library } from "./routes/Library";
 import { NotFound } from "./routes/NotFound";
-import { ReconstructPlaceholder } from "./routes/ReconstructPlaceholder";
+import { Reconstruct } from "./routes/Reconstruct";
+import { WorkedExample } from "./routes/WorkedExample";
 
 export function App() {
   return (
@@ -13,7 +15,9 @@ export function App() {
         <Route path="/" element={<Home />} />
         <Route path="/library" element={<Library />} />
         <Route path="/condense/:attemptId" element={<Condense />} />
-        <Route path="/reconstruct/:attemptId" element={<ReconstructPlaceholder />} />
+        <Route path="/reconstruct/:attemptId" element={<Reconstruct />} />
+        <Route path="/align/:attemptId" element={<Align />} />
+        <Route path="/example" element={<WorkedExample />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppLayout>

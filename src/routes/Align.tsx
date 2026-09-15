@@ -1,17 +1,19 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { AlignmentView } from "../components/AlignmentView";
 import { ErrorState } from "../components/ErrorState";
 import { Skeleton } from "../components/Skeleton";
 import type { AttemptRecord } from "../lib/db";
 import { getAttempt } from "../lib/store";
-import styles from "./ReconstructPlaceholder.module.css";
+import styles from "./Align.module.css";
 
 type LoadStatus = "loading" | "ready" | "not-found" | "error";
 
-// A thin seam so a ripe "Rebuild" button has a real destination. The rebuild
-// writing surface and the alignment diff arrive in the next release. This
-// screen never renders the passage sentences: the vault holds even here.
-export function ReconstructPlaceholder() {
+// The moment of truth: the saved alignment of a reconstructed attempt. The
+// original text appears here for the first time, beside the rebuild. An
+// attempt that has not been rebuilt is sent back to the reconstruct screen, so
+// the vault holds.
+export function Align() {
   const { attemptId } = useParams();
   const navigate = useNavigate();
   const [attempt, setAttempt] = useState<AttemptRecord | null>(null);
@@ -42,11 +44,7 @@ export function ReconstructPlaceholder() {
   }, [attemptId]);
 
   if (status === "loading") {
-    return (
-      <div className={styles.wrap}>
-        <Skeleton lines={3} label="Loading your attempt" />
-      </div>
-    );
+    return <Skeleton lines={6} label="Loading the alignment" />;
   }
 
   if (status === "not-found" || status === "error" || !attempt) {
@@ -60,14 +58,20 @@ export function ReconstructPlaceholder() {
     );
   }
 
+  if (!attempt.alignment) {
+    return <Navigate to={`/reconstruct/${attempt.id}`} replace />;
+  }
+
   return (
-    <section className={styles.wrap}>
-      <h1 className={styles.title}>Rebuild</h1>
-      <p className={styles.passage}>{attempt.passage.title}</p>
-      <p className={styles.body}>Your hints are saved and ready. The rebuild step opens next.</p>
-      <Link to="/" className="btn btn-primary">
-        Back to your attempts
-      </Link>
+    <section>
+      <AlignmentView
+        title={attempt.passage.title}
+        author={attempt.passage.author}
+        alignment={attempt.alignment}
+      />
+      <p className={styles.back}>
+        <Link to="/">Back to your attempts</Link>
+      </p>
     </section>
   );
 }

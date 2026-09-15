@@ -1,0 +1,29 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.intro {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  width: 100%;
+  color: var(--color-text-muted);
+}
+
+.actions {
+  max-width: var(--container-max);
+  margin: var(--space-4) auto 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.home {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-target);
+  font-weight: 600;
+}
