@@ -8,12 +8,16 @@ rebuild it from memory. The tool lays your version beside the original, sentence
 by sentence, so you can see exactly what you kept and what you lost. Everything
 stays on your device. There is no account and no server.
 
-This release covers the front half of the loop. You start an attempt from a
-library passage or your own pasted text, condense it into hints one sentence at
-a time, and vault the original behind a delay so memory does the work. The
-dashboard tracks each attempt from condensing to vaulted to ripe, and exports a
-calendar reminder for the ripe date. The rebuild and alignment steps arrive in
-later releases.
+The full loop works end to end. You start an attempt from a library passage or
+your own pasted text, condense it into hints one sentence at a time, and vault
+the original behind a delay so memory does the work. Once the attempt is ripe
+you rebuild the passage from your hints alone, and the app computes a
+deterministic sentence-by-sentence alignment against the original: matched
+sentences side by side with word-level marks, sentences only in the original,
+sentences only in yours, and a neutral length comparison per pair. The
+alignment is pure local computation. There is no score and no AI critique, just
+the differences in color. A worked example at `/example` shows a finished
+alignment without the wait.
 
 ## Run it
 
@@ -62,13 +66,15 @@ behind a shared reverse proxy and does not publish a host port, so use the
 ## How the code is laid out
 
 - `src/routes/` screens: the home dashboard, the library browser, the condense
-  screen, the reconstruct seam, and the 404.
+  screen, the reconstruct screen, the alignment view, the worked example, and
+  the 404.
 - `src/components/` shared UI: layout, empty state, error state, skeleton,
-  passage card, attempt card, paste-your-own, and the "How it works" panel.
-- `src/data/` the curated seed passages and their types.
+  passage card, attempt card, paste-your-own, and the alignment renderer.
+- `src/data/` the curated seed passages, their types, and the fixed worked
+  example.
 - `src/lib/` local persistence (IndexedDB), the typed data store, sentence
-  segmentation, delay presets, ripeness helpers, calendar export, runtime
-  config, analytics, and error-tracking wiring.
+  segmentation, the alignment engine, delay presets, ripeness helpers,
+  calendar export, runtime config, analytics, and error-tracking wiring.
 - `src/styles/` design tokens and global CSS.
 - `e2e/` Playwright smoke tests.
 
