@@ -45,3 +45,10 @@ export function ripeLabel(vaultedUntil: number, now: number): string {
   const d = new Date(vaultedUntil);
   return `Ripe on ${MONTHS[d.getMonth()]} ${d.getDate()}`;
 }
+
+// A dated label for ledger entries and chart axis ends, e.g. "Sep 15, 2026".
+// Reuses the module's MONTHS so output is deterministic and locale-independent.
+export function dateLabel(ms: number): string {
+  const d = new Date(ms);
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}

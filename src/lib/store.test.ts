@@ -5,6 +5,7 @@ import type { PassageSnapshot } from "./db";
 import {
   createAttempt,
   getAttempt,
+  importAttempts,
   listAttempts,
   saveHint,
   saveReconstruction,
@@ -12,6 +13,8 @@ import {
 } from "./store";
 import { DELAY_PRESETS } from "./delays";
 import { alignSentences } from "./align";
+import { buildExport, parseExport } from "./transfer";
+import type { AttemptRecord } from "./db";
 
 // A fresh in-memory factory per test isolates each case from prior state.
 beforeEach(() => {
@@ -109,6 +112,69 @@ describe("saveReconstruction", () => {
   it("throws for an unknown attempt", async () => {
     const alignment = alignSentences(["A."], ["A."]);
     await expect(saveReconstruction("missing", "A.", alignment, 1)).rejects.toThrow();
+  });
+});
+
+function recordFixture(id: string, createdAt: number): AttemptRecord {
+  return {
+    id,
+    status: "reconstructed",
+    createdAt,
+    passage: { ...passage },
+    hints: ["a", "b", "c"],
+    cursor: 3,
+    delayType: "micro",
+    vaultedAt: createdAt + 1,
+    vaultedUntil: createdAt + 2,
+    reconstructionText: "First sentence.",
+    reconstructedAt: createdAt + 3,
+    alignment: alignSentences(passage.sentences, ["First sentence."]),
+  };
+}
+
+describe("importAttempts", () => {
+  it("adds every record into a fresh store, deep-equal to the originals", async () => {
+    const rows = [recordFixture("i1", 1000), recordFixture("i2", 2000)];
+    const result = await importAttempts(rows);
+    expect(result).toEqual({ added: 2, skipped: 0 });
+
+    const loaded = await listAttempts();
+    expect(loaded).toEqual(rows);
+  });
+
+  it("skips ids that already exist and never overwrites local work", async () => {
+    const original = recordFixture("dup", 1000);
+    await importAttempts([original]);
+
+    const changed = { ...recordFixture("dup", 1000), reconstructionText: "Different text." };
+    const second = await importAttempts([changed, recordFixture("new", 2000)]);
+    expect(second).toEqual({ added: 1, skipped: 1 });
+
+    const kept = await getAttempt("dup");
+    expect(kept?.reconstructionText).toBe("First sentence.");
+  });
+
+  it("reports added 0 and skipped N when the same file is imported twice", async () => {
+    const rows = [recordFixture("a", 1000), recordFixture("b", 2000)];
+    await importAttempts(rows);
+    const again = await importAttempts(rows);
+    expect(again).toEqual({ added: 0, skipped: 2 });
+  });
+
+  it("reproduces the ledger through a full export and import round trip", async () => {
+    const rows = [recordFixture("x", 1000), recordFixture("y", 2000)];
+    await importAttempts(rows);
+    const text = buildExport(await listAttempts(), 42);
+
+    // Wipe the store, then restore from the exported file alone.
+    resetDbConnection();
+    globalThis.indexedDB = new IDBFactory();
+
+    const parsed = parseExport(text);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) await importAttempts(parsed.attempts);
+
+    expect(await listAttempts()).toEqual(rows);
   });
 });
 

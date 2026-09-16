@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attemptState, ripeLabel } from "./attempts";
+import { attemptState, dateLabel, ripeLabel } from "./attempts";
 import type { AttemptRecord } from "./db";
 import { DEFAULT_DELAY, DELAY_PRESETS } from "./delays";
 
@@ -85,6 +85,17 @@ describe("ripeLabel", () => {
     for (const l of labels) {
       expect(l).not.toMatch(/[—–]/);
     }
+  });
+});
+
+describe("dateLabel", () => {
+  it("renders a month name, day, and year", () => {
+    const at = new Date(2026, 8, 15, 10, 30).getTime();
+    expect(dateLabel(at)).toBe("Sep 15, 2026");
+  });
+
+  it("is dash-free", () => {
+    expect(dateLabel(new Date(2026, 0, 1).getTime())).not.toMatch(/[—–]/);
   });
 });
 

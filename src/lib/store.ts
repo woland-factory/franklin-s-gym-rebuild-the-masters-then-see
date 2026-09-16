@@ -94,6 +94,30 @@ export async function saveReconstruction(
   return attempt;
 }
 
+// Merges imported records into the attempts store in one readwrite
+// transaction. Records whose id already exists are left untouched, so an import
+// never overwrites newer local work. Returns what happened for the UI.
+export async function importAttempts(
+  records: AttemptRecord[],
+): Promise<{ added: number; skipped: number }> {
+  const db = await openDb();
+  const tx = db.transaction("attempts", "readwrite");
+  const store = tx.objectStore("attempts");
+  let added = 0;
+  let skipped = 0;
+  for (const record of records) {
+    const existing = await store.get(record.id);
+    if (existing) {
+      skipped += 1;
+      continue;
+    }
+    await store.put(record);
+    added += 1;
+  }
+  await tx.done;
+  return { added, skipped };
+}
+
 export async function getSetting<T = unknown>(key: string): Promise<T | undefined> {
   const db = await openDb();
   const record = await db.get("settings", key);
