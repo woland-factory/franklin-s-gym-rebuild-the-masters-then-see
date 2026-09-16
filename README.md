@@ -19,6 +19,13 @@ alignment is pure local computation. There is no score and no AI critique, just
 the differences in color. A worked example at `/example` shows a finished
 alignment without the wait.
 
+Every completed attempt files into the ledger at `/ledger`: a dated history,
+newest first, each linking back to its alignment, plus two reconstruction
+fidelity charts that track how much of the hinted substance each rebuild
+recovered. Both numbers are derived from the saved alignment, never a graded
+quality score. The ledger also exports your whole record as one plain JSON file
+you can read in any editor and keep, and imports it back into a fresh device.
+
 ## Run it
 
 You need [Node.js](https://nodejs.org/) 22+ for local development, or Docker to
@@ -66,15 +73,17 @@ behind a shared reverse proxy and does not publish a host port, so use the
 ## How the code is laid out
 
 - `src/routes/` screens: the home dashboard, the library browser, the condense
-  screen, the reconstruct screen, the alignment view, the worked example, and
-  the 404.
+  screen, the reconstruct screen, the alignment view, the ledger, the worked
+  example, and the 404.
 - `src/components/` shared UI: layout, empty state, error state, skeleton,
-  passage card, attempt card, paste-your-own, and the alignment renderer.
+  passage card, attempt card, paste-your-own, the alignment renderer, and the
+  trend chart.
 - `src/data/` the curated seed passages, their types, and the fixed worked
   example.
 - `src/lib/` local persistence (IndexedDB), the typed data store, sentence
-  segmentation, the alignment engine, delay presets, ripeness helpers,
-  calendar export, runtime config, analytics, and error-tracking wiring.
+  segmentation, the alignment engine, fidelity metrics, record export and
+  import, delay presets, ripeness helpers, calendar export, runtime config,
+  analytics, and error-tracking wiring.
 - `src/styles/` design tokens and global CSS.
 - `e2e/` Playwright smoke tests.
 

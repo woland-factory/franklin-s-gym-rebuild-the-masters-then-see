@@ -3,6 +3,7 @@ import { AppLayout } from "./components/AppLayout";
 import { Align } from "./routes/Align";
 import { Condense } from "./routes/Condense";
 import { Home } from "./routes/Home";
+import { Ledger } from "./routes/Ledger";
 import { Library } from "./routes/Library";
 import { NotFound } from "./routes/NotFound";
 import { Reconstruct } from "./routes/Reconstruct";
@@ -14,6 +15,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/library" element={<Library />} />
+        <Route path="/ledger" element={<Ledger />} />
         <Route path="/condense/:attemptId" element={<Condense />} />
         <Route path="/reconstruct/:attemptId" element={<Reconstruct />} />
         <Route path="/align/:attemptId" element={<Align />} />

@@ -23,6 +23,9 @@ export function AppLayout({ children }: AppLayoutProps) {
             <Link to="/library" className={styles.navLink}>
               Library
             </Link>
+            <Link to="/ledger" className={styles.navLink}>
+              Ledger
+            </Link>
           </nav>
         </div>
       </header>
