@@ -5,7 +5,8 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { IDBFactory } from "fake-indexeddb";
 import { Condense } from "./Condense";
 import { resetDbConnection, type PassageSnapshot } from "../lib/db";
-import { createAttempt, getAttempt, saveHint, vaultAttempt } from "../lib/store";
+import { createAttempt, getAttempt, putSetting, saveHint, vaultAttempt } from "../lib/store";
+import { FIRST_RUN_MICRO_DRILL_KEY } from "../lib/firstRun";
 
 beforeEach(() => {
   resetDbConnection();
@@ -84,6 +85,20 @@ describe("Condense", () => {
     const stored = await getAttempt(created.id);
     expect(stored?.status).toBe("vaulted");
     expect(stored?.delayType).toBe("standard");
+  });
+
+  it("defaults the guided micro-drill attempt to the short delay", async () => {
+    const user = userEvent.setup();
+    const created = await createAttempt(passage(), 1000);
+    await putSetting(FIRST_RUN_MICRO_DRILL_KEY, created.id);
+    renderCondense(created.id);
+
+    await screen.findByText("Alpha one.");
+    await user.click(screen.getByRole("button", { name: /next/i }));
+    await user.click(screen.getByRole("button", { name: /finish and vault/i }));
+
+    expect(await screen.findByRole("radio", { name: /in 15 minutes/i })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /in 3 days/i })).not.toBeChecked();
   });
 
   it("never shows a sentence for a vaulted attempt", async () => {

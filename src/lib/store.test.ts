@@ -9,8 +9,10 @@ import {
   listAttempts,
   saveHint,
   saveReconstruction,
+  seedDemoAttempt,
   vaultAttempt,
 } from "./store";
+import { hasCompletedAttempt } from "./firstRun";
 import { DELAY_PRESETS } from "./delays";
 import { alignSentences } from "./align";
 import { buildExport, parseExport } from "./transfer";
@@ -192,5 +194,28 @@ describe("persistence across reopen", () => {
     expect(all[0].hints[0]).toBe("sunrise");
     expect(all[0].status).toBe("vaulted");
     expect(all[0].vaultedUntil).toBe(2000 + DELAY_PRESETS.micro.ms);
+  });
+});
+
+describe("seedDemoAttempt", () => {
+  it("adds one reconstructed demo attempt to an empty store", async () => {
+    await seedDemoAttempt(1000);
+    const all = await listAttempts();
+    expect(all).toHaveLength(1);
+    expect(hasCompletedAttempt(all)).toBe(true);
+  });
+
+  it("is idempotent and never clobbers an existing attempt", async () => {
+    await seedDemoAttempt(1000);
+    await seedDemoAttempt(2000);
+    expect(await listAttempts()).toHaveLength(1);
+  });
+
+  it("seeds nothing when the store already holds any attempt", async () => {
+    await createAttempt(passage, 1000);
+    await seedDemoAttempt(2000);
+    const all = await listAttempts();
+    expect(all).toHaveLength(1);
+    expect(all[0].status).toBe("condensing");
   });
 });

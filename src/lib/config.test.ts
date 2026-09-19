@@ -43,4 +43,28 @@ describe("getConfig", () => {
     window.__APP_CONFIG__ = { SENTRY_DSN: "${SENTRY_DSN}" };
     expect(getConfig().sentryDsn).toBe("");
   });
+
+  it("defaults seedDemo to false when nothing is set", () => {
+    expect(getConfig().seedDemo).toBe(false);
+  });
+
+  it("parses truthy SEED_DEMO tokens case-insensitively", () => {
+    for (const token of ["1", "true", "yes", "on", "TRUE", "On", "YeS"]) {
+      window.__APP_CONFIG__ = { SEED_DEMO: token };
+      expect(getConfig().seedDemo, token).toBe(true);
+    }
+  });
+
+  it("treats other values, empty, and a placeholder as false", () => {
+    for (const token of ["", "0", "false", "no", "off", "${SEED_DEMO}"]) {
+      window.__APP_CONFIG__ = { SEED_DEMO: token };
+      expect(getConfig().seedDemo, token).toBe(false);
+    }
+  });
+
+  it("prefers a runtime SEED_DEMO over build env", () => {
+    window.__APP_CONFIG__ = { SEED_DEMO: "1" };
+    vi.stubEnv("VITE_SEED_DEMO", "");
+    expect(getConfig().seedDemo).toBe(true);
+  });
 });
