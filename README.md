@@ -19,6 +19,12 @@ alignment is pure local computation. There is no score and no AI critique, just
 the differences in color. A worked example at `/example` shows a finished
 alignment without the wait.
 
+A first-time visitor lands on a short guided path that walks the whole loop
+once. It starts a quick drill on a small passage, fills the short wait with a
+warm-up reading, and ends the first session in a real alignment the same day.
+The guide is skippable at any step and never returns once you finish your first
+rebuild.
+
 Every completed attempt files into the ledger at `/ledger`: a dated history,
 newest first, each linking back to its alignment, plus two reconstruction
 fidelity charts that track how much of the hinted substance each rebuild
@@ -56,9 +62,11 @@ docker run --rm -p 8080:80 franklins-gym
 ```
 
 Open `http://localhost:8080`. The container serves the static build through
-nginx with SPA routing. It reads `UMAMI_URL`, `UMAMI_WEBSITE_ID`, and
-`SENTRY_DSN` from the environment at start and injects them at runtime, so the
-same image works across environments. Pass them with `-e` if you want them set:
+nginx with SPA routing. It reads `UMAMI_URL`, `UMAMI_WEBSITE_ID`, `SENTRY_DSN`,
+and `SEED_DEMO` from the environment at start and injects them at runtime, so the
+same image works across environments. Set `SEED_DEMO=1` to open a fresh device on
+a ready-made demo attempt that reaches the alignment view in one tap. Pass any of
+them with `-e` if you want them set:
 
 ```bash
 docker run --rm -p 8080:80 \
@@ -83,7 +91,8 @@ behind a shared reverse proxy and does not publish a host port, so use the
 - `src/lib/` local persistence (IndexedDB), the typed data store, sentence
   segmentation, the alignment engine, fidelity metrics, record export and
   import, delay presets, ripeness helpers, calendar export, runtime config,
-  analytics, and error-tracking wiring.
+  the first-run guide logic, the demo-seed builder, analytics, and
+  error-tracking wiring.
 - `src/styles/` design tokens and global CSS.
 - `e2e/` Playwright smoke tests.
 
