@@ -4,8 +4,8 @@ test.describe("first render at 390px", () => {
   test("home shows real content with no horizontal scroll", async ({ page }) => {
     await page.goto("/");
 
-    // Real content, not a blank page.
-    await expect(page.getByRole("heading", { name: /train against the masters/i })).toBeVisible();
+    // Real content, not a blank page. A fresh store opens on the first-run guide.
+    await expect(page.getByRole("heading", { name: /finish your first loop today/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /browse passages/i })).toBeVisible();
 
     // No horizontal scroll at a 390px viewport.
@@ -141,6 +141,76 @@ test.describe("ledger and durability", () => {
     await expect(page).toHaveURL(/\/align\//);
     await expect(page.getByText("In the original", { exact: true })).toBeVisible();
     await expect(page.getByText("In yours", { exact: true })).toBeVisible();
+    expect(await noHorizontalScroll(page)).toBe(true);
+  });
+});
+
+test.describe("first-run walkthrough", () => {
+  test("walks a new user from the guide to a warm-up wait, then skip stays skipped", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    // The guide is the primary surface on a fresh store.
+    await expect(page.getByRole("heading", { name: /finish your first loop today/i })).toBeVisible();
+    const start = page.getByRole("button", { name: /start the quick drill/i });
+    await expect(start).toBeVisible();
+    expect(await noHorizontalScroll(page)).toBe(true);
+
+    // Starting the drill opens the condense screen for the guided attempt.
+    await start.click();
+    await expect(page).toHaveURL(/\/condense\//);
+    await expect(page.getByText(/Sentence 1 of/)).toBeVisible();
+
+    // Note the passage to the last sentence, then open the vault chooser.
+    for (let i = 0; i < 40; i++) {
+      const finish = page.getByRole("button", { name: /Finish and vault/i });
+      if (await finish.isVisible().catch(() => false)) break;
+      await page.getByRole("button", { name: /^Next$/ }).click();
+    }
+    await page.getByRole("button", { name: /Finish and vault/i }).click();
+
+    // The guided attempt defaults to the short delay.
+    await expect(page.getByRole("radio", { name: /In 15 minutes/i })).toBeChecked();
+    await page.getByRole("button", { name: /Vault it/i }).click();
+
+    // Back on the dashboard the guide fills the wait with the warm-up reading.
+    await expect(page.getByRole("heading", { name: /your attempts/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /warm-up reading/i })).toBeVisible();
+    await expect(page.getByText(/Ripe in/i).first()).toBeVisible();
+    expect(await noHorizontalScroll(page)).toBe(true);
+
+    // Skipping removes the guide, and a reload keeps it gone.
+    await page.getByRole("button", { name: /skip the guide/i }).click();
+    await expect(page.getByRole("heading", { name: /finish your first loop today/i })).toBeHidden();
+    await expect(page.getByRole("heading", { name: /warm-up reading/i })).toBeHidden();
+    await page.reload();
+    await expect(page.getByRole("heading", { name: /your attempts/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /warm-up reading/i })).toBeHidden();
+  });
+});
+
+test.describe("SEED_DEMO staging demo", () => {
+  test("opens on a demo card that reaches a real alignment in one tap", async ({ page }) => {
+    // Serve a runtime config with the demo flag set, standing in for staging.
+    await page.route("**/env-config.js", (route) =>
+      route.fulfill({
+        contentType: "application/javascript",
+        body: 'window.__APP_CONFIG__ = { UMAMI_URL: "", UMAMI_WEBSITE_ID: "", SENTRY_DSN: "", SEED_DEMO: "1" };',
+      }),
+    );
+
+    await page.goto("/");
+
+    // The dashboard opens on a demo attempt whose alignment is one tap away.
+    const seeAlignment = page.getByRole("link", { name: /see alignment/i }).first();
+    await expect(seeAlignment).toBeVisible();
+    await seeAlignment.click();
+
+    await expect(page).toHaveURL(/\/align\//);
+    await expect(page.getByText("In the original", { exact: true })).toBeVisible();
+    await expect(page.getByText("In yours", { exact: true })).toBeVisible();
+    await expect(page.locator("mark").first()).toBeVisible();
     expect(await noHorizontalScroll(page)).toBe(true);
   });
 });
