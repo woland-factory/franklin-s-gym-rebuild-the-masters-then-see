@@ -1,22 +1,33 @@
-# EPIC SPEC — Ledger & durability
+# EPIC SPEC — First-run walkthrough & micro-drill
 
 Franklin's Gym: rebuild the masters, then see your gaps in color.
 
-This EPIC makes the record durable and visible. It builds the `/ledger` screen:
-the dated history of every completed attempt, newest first, each entry linking
-back to its saved alignment; a trend view of the two reconstruction-fidelity
-metrics over time; and plain-file export/import so the user owns the whole
-record as a JSON file that restores byte-faithfully into a fresh store.
+This EPIC solves the day-one cliff. A brand-new user today lands on a designed
+empty state, picks a passage, condenses it, and then hits a wall: the standard
+delay is three days, so the first session ends in homework, not in the
+alignment that is the whole point. This EPIC leads that user through the loop
+once, the same day, and ends the first session in a real, honest alignment.
 
-The foundation already exists (EPICs 1 to 3): a Vite + React 18 + TypeScript
-app, `react-router-dom` v7 routing in `src/App.tsx`, the IndexedDB layer
-(`src/lib/db.ts`, `src/lib/store.ts`) with an `attempts` object store indexed
-`by-createdAt`, the deterministic alignment engine (`src/lib/align.ts`), and a
-complete loop: condense (`/condense/:id`) → vault → reconstruct
-(`/reconstruct/:id`) → align (`/align/:id`). A reconstructed attempt already
-carries `reconstructionText`, `reconstructedAt`, and a cached `alignment`
-(`Alignment` in `db.ts`), saved by `saveReconstruction`. This EPIC reads that
-saved data; it changes nothing about how it is produced.
+It adds three first-run surfaces and nothing else:
+1. A short guided path (a "first workout" checklist) that walks a new user from
+   the first note to the first alignment, skippable at any step, gone forever
+   after the first success.
+2. A micro-drill: a short passage vaulted behind a minutes-long delay filled by
+   a warm-up passage to read, so the interval is real yet the session finishes
+   the same day.
+3. The `SEED_DEMO` staging demo: with the flag set, the app opens on demo state
+   that reaches the alignment view within a minute with no typing.
+
+The foundation already exists (EPICs 1 to 4): a Vite + React 18 + TypeScript
+app; `react-router-dom` v7 routing in `src/App.tsx`; the IndexedDB layer
+(`src/lib/db.ts`, `src/lib/store.ts`) with an `attempts` object store and a
+`settings` object store; the full loop condense (`/condense/:id`) → vault →
+reconstruct (`/reconstruct/:id`) → align (`/align/:id`); the ledger
+(`/ledger`); the deterministic alignment engine (`src/lib/align.ts`); runtime
+config (`src/lib/config.ts`) injected by `docker-entrypoint.sh`; and a worked
+example at `/example`. This EPIC adds guidance and a demo seed on top. It
+changes nothing about how condensing, vaulting, reconstructing, or aligning
+work.
 
 ---
 
@@ -27,91 +38,105 @@ precision of a deterministic sentence-by-sentence diff against a fixed
 original, computed in seconds. Paper cannot collate without tedium. A chatbot
 flatters and lets the original leak from scrollback.
 
-**What it demands of THIS EPIC:** the ledger extends that honesty across
-months. Every number it shows is derived, deterministically and locally, from
-alignments the engine already saved; nothing is estimated, smoothed, or
-reframed to look kinder.
+**What it demands of THIS EPIC:** onboarding must deliver the honest
+confrontation on day one without cheapening it.
 
-- **Fidelity, never a grade.** The two charted metrics measure how much of the
-  hinted substance a rebuild recovered, not how good the prose is. A composite
-  quality score, a similarity-to-the-master number, a streak, or a leaderboard
-  is the metric trap (plan binding condition 1) and is a defect, not a feature.
-- **Deterministic derivation.** The same saved alignment always yields the
-  same metrics. Metrics are computed by a pure function from the cached
-  `Alignment`; no clock, no randomness, no model.
-- **The record is the user's.** Export writes the entire store to one plain,
-  pretty-printed JSON file the user can read in a text editor and keep
-  forever. Import restores it exactly. Losing this record should be the thing
-  the north-star user would mourn; this EPIC is what makes it unlosable.
+- **The wait stays real.** The micro-drill's delay is genuinely minutes long,
+  not zero. Forgetting is the exercise. The warm-up passage fills the wait so
+  the user stays engaged, but it never shortens or fakes the delay, and it
+  never lets the user peek at the vaulted original.
+- **The demo shows the truth, not a trophy.** The `SEED_DEMO` attempt reaches a
+  real alignment with genuine gaps (an omission and an addition, marked in
+  color), computed by the same engine as any attempt. A demo that shows a
+  flawless rebuild demonstrates nothing and is a defect.
+- **Guidance points, never lectures.** Every guide string is one short
+  imperative anchored to a real control. The screen is still the product.
 
 ---
 
 ## Scope
 
 ### In scope
-- **Ledger screen** at `/ledger`, linked from the primary nav. It lists every
-  completed (reconstructed) attempt, dated, newest first, DOM-paginated in
-  pages of 20, each entry linking to `/align/:id`.
-- **Trend view** on the same screen: two small single-series SVG charts over
-  the completed attempts in time order, one per reconstruction-fidelity
-  metric (share of hinted ideas recovered; sentence-count difference), each
-  explicitly labeled "Reconstruction fidelity". Dependency-free inline SVG;
-  no chart library.
-- **Metrics module** `src/lib/metrics.ts`: a pure function deriving the two
-  fidelity metrics from a saved `Alignment`. Derived on read; never persisted.
-- **Export**: one button that downloads the entire `attempts` store (every
-  status, not only reconstructed) as a versioned, pretty-printed JSON file.
-- **Import**: a file control that reads such a file, validates it at the
-  boundary, and merges the records into the store, skipping ids already
-  present. Export then import into a fresh store reproduces the ledger.
-- **Ledger empty state** that says what will accumulate here and points to the
-  first action, with the import control still reachable (a returning user on a
-  fresh device arrives at an empty ledger holding a file).
-- Store helper `importAttempts`, transfer module `src/lib/transfer.ts`, date
-  label helper in `src/lib/attempts.ts`, the `/ledger` route, and the nav link.
+- **First-run guide** on the home dashboard (`src/components/FirstRunGuide.tsx`):
+  a compact "first workout" checklist of three steps, each one short imperative
+  sentence, whose ticks fill from the real state of the guided attempt. Its
+  active-step action is always the real next control. A "Skip the guide"
+  control is present in every state.
+- **Micro-drill** started by the guide: creates an attempt on a fixed short
+  seed passage, steers the vault to the `micro` delay (minutes), and fills the
+  wait with a read-only **warm-up passage** (a different short seed) plus the
+  live ripeness countdown. When ripe, the guide's action becomes "Rebuild now".
+- **Pipeline nudge** on the populated first-run dashboard: one short hint line
+  encouraging the user to condense a few passages so one is ripe on return.
+- **`SEED_DEMO` demo state**: when the flag is set and the store is empty,
+  bootstrap seeds one reconstructed demo attempt (a real passage, a canned
+  imperfect rebuild, a real cached alignment) so the app opens on demo state
+  and the alignment view is one tap away.
+- **First-run gate**: all three surfaces are hidden the moment the user has any
+  completed (reconstructed) attempt, and hidden after the user skips.
+- Supporting pieces: `src/lib/firstRun.ts` (pure gate + view derivation +
+  constants), `src/lib/demo.ts` (pure demo-attempt builder), `seedDemoAttempt`
+  in `src/lib/store.ts`, a `seedDemo` field in `src/lib/config.ts`, the
+  `SEED_DEMO` line in `docker-entrypoint.sh`, the micro-delay default for the
+  guided attempt in `src/routes/Condense.tsx`, and the demo seed step in
+  `src/components/Bootstrap.tsx`.
 
 ### Out of scope (do not build here)
-- The guided first-run walkthrough, micro-drill, and `SEED_DEMO` staging demo.
-  All EPIC 5.
-- The whole-product polish pass (color-blind chart treatment beyond the
-  baseline bar, deep chart interactivity such as crosshairs and pinned
-  tooltips). EPIC 6.
-- A `/settings` route or settings screen. Export/import lives on the ledger
-  screen itself.
-- Any change to the alignment engine, the condense/reconstruct/align screens,
-  or the home dashboard. Home keeps its own pipeline list exactly as is.
-- Deleting attempts, editing attempts, or re-running alignments.
-- Exporting the `settings` object store (nothing meaningful lives there yet;
-  the versioned format leaves room later).
+- **No new core mechanics** (planner non-goal). Condensing, vaulting,
+  reconstructing, and the alignment engine are untouched. The warm-up passage
+  is read-only display of an existing seed. It is not a new exercise, has no
+  input, and writes nothing.
+- **No additional Franklin drills** (planner non-goal). One loop only:
+  condense → vault → reconstruct → align. The warm-up is reading material, not
+  a jumble/verse/improve drill.
+- **No settings screen, no configurable delays.** The two existing delay
+  presets in `src/lib/delays.ts` stay exactly as they are. The guide selects
+  `micro` as the default for its attempt; it adds no new preset.
+- **No analytics requirement.** Emitting a first-run event is allowed if it
+  matches existing `initAnalytics` usage and carries no passage text, but it is
+  not an acceptance criterion. Do not build a funnel.
+- **No changes to the ledger, library, reconstruct, or align screens** beyond
+  what is listed above (only Condense gains a micro default; only Home and
+  Bootstrap gain first-run wiring).
+- **No data-model changes.** No `DB_VERSION` bump, no new object store, no new
+  `AttemptRecord` field. First-run state lives in the existing `settings`
+  store; the demo attempt is an ordinary `AttemptRecord`.
 
 ### Two scope decisions, settled here so nobody re-litigates them
 
-1. **The ledger lists completed attempts.** The planner's criterion says every
-   entry links to its alignment, and only reconstructed attempts have one. So
-   the ledger is the record of completed loops, dated by `reconstructedAt`.
-   In-progress attempts (condensing, vaulted, ripe) stay on the home
-   dashboard, which is the pipeline; the ledger is the archive. No entry ever
-   needs a fallback link.
-2. **Export carries the whole store.** Durability covers in-progress work too:
-   a condensing or vaulted attempt (its hints, its vault clock) survives the
-   round trip even though it has no ledger entry yet. "Reproduces the ledger"
-   is then a strict subset of what import restores.
+1. **`SEED_DEMO` and the walkthrough are mutually exclusive by design, and that
+   is correct.** The seeded demo attempt is a completed (reconstructed)
+   attempt, so it trips the first-run gate and the walkthrough does not show on
+   a demo-seeded store. This is intended: `SEED_DEMO` exists to show a stranger
+   the differentiator (the alignment) in the first minute, not the onboarding.
+   The walkthrough is proven on a clean, unseeded store (the default in dev,
+   test, and the e2e build). Both criteria are independently provable. Do not
+   try to show both at once.
+2. **The guide tracks one attempt, chosen robustly.** The guided micro-drill
+   attempt's id is persisted in `settings`. If that id is missing but an
+   in-progress attempt exists (for example the user started from the library
+   instead of the guide), the guide tracks the most recent non-reconstructed
+   attempt so it still walks the user to first success. The same-day guarantee
+   and the warm-up attach specifically to the guided micro-drill attempt (the
+   one vaulted with the `micro` delay).
 
 ---
 
 ## Non-goals (binding — a built non-goal is a defect)
-- **No composite quality or similarity-to-master score, no streak, no
-  leaderboard, no badge.** Not on the ledger, not in the charts, not in the
-  export file. Each of the two metrics is charted separately and labeled as
-  reconstruction fidelity. (Plan binding condition 1.)
-- **No cloud sync.** No network call anywhere in this EPIC. Export and import
-  are local file operations via Blob download and `File` read.
-- **No accounts.** Nothing identifies the user; the export file carries no
-  name, email, or device identifier.
-- **No sharing.** No share links, no publish, no copy-to-clipboard of another
-  person's view. The export file is for the user's own keeping.
-- **No new dependencies.** The charts are hand-rolled SVG; JSON handling is
-  `JSON.parse`/`JSON.stringify`.
+- **No new mechanic and no new drill.** (Planner non-goals, restated.)
+- **No shortening or faking the delay.** The micro delay stays a real
+  15 minutes (`DELAY_PRESETS.micro`). No zero-delay path, no "reveal now"
+  button, no way to reach the alignment without the wait actually elapsing.
+- **No peeking.** The warm-up display never renders the vaulted passage's
+  sentences. The vault guard is not weakened.
+- **No quality score, streak, badge, or leaderboard** anywhere in the guide,
+  nudge, or demo. (Plan binding condition 1 still holds.) The guide counts
+  steps in a fixed checklist; three steps of a first loop is not a streak.
+- **No accounts, no network call, no cloud.** Everything is local. The demo
+  seed is a local write; no data leaves the device.
+- **No new dependencies.** Plain React, existing store, existing tokens.
+- **No onboarding essay, modal takeover, or tour library.** The guide is an
+  inline card with one imperative per step. (Quality bar §4 and §7 together.)
 
 ---
 
@@ -120,499 +145,500 @@ reframed to look kinder.
 ### Stack and conventions (match what exists)
 - TypeScript, React 18 function components, CSS Modules with tokens from
   `src/styles/tokens.css`. Reuse the global `btn`, `btn-primary`,
-  `btn-secondary` classes and the `Skeleton` / `ErrorState` / `EmptyState`
-  components.
+  `btn-secondary` classes and `EmptyState` / `ErrorState` / `Skeleton`.
 - Persistence through `store.ts` helpers only; components never call `openDb`.
-- All user text renders as React text nodes (auto-escaped). Never
-  `dangerouslySetInnerHTML`, including inside SVG.
-- Pass `now` into pure helpers; call `Date.now()` only at the component edge,
-  as `Home.tsx` and `AttemptCard.tsx` already do.
+- All user and passage text renders as React text nodes (auto-escaped). Never
+  `dangerouslySetInnerHTML`.
+- Pure helpers take `now: number`; call `Date.now()` only at the component edge,
+  as `Home.tsx`, `AttemptCard.tsx`, and `Condense.tsx` already do.
 - Tests: Vitest + Testing Library colocated, `fake-indexeddb` for store tests,
   Playwright in `e2e/` at the 390px viewport.
 
 ### Data model: NO changes
 
-No `DB_VERSION` bump, no new record fields, no new object store. Metrics are
-derived on read from the cached `Alignment` by a pure function. Persisting
-them would create a second source of truth that could drift from the
-alignment; deriving keeps the mirror incorruptible and costs microseconds per
-attempt (an alignment has at most ~80 pairs).
+`DB_VERSION` stays 1. No new fields, no new store. First-run state is two keys
+in the existing `settings` store (via `getSetting`/`putSetting`):
 
-### Metrics — `src/lib/metrics.ts` (new)
+- `firstRun.microDrillId`: `string` — the id of the guided micro-drill attempt,
+  written when the guide starts it.
+- `firstRun.dismissed`: `boolean` — written `true` when the user skips.
 
-Pure, deterministic, no I/O.
+The demo attempt is a normal `AttemptRecord` written to `attempts`.
 
-```ts
-import type { Alignment } from "./db";
+### First-run logic — `src/lib/firstRun.ts` (new)
 
-export interface FidelityMetrics {
-  /** Original sentences: matched pairs + omissions. */
-  originalSentences: number;
-  /** Original sentences recovered: the matched pairs. */
-  recoveredSentences: number;
-  /** recoveredSentences / originalSentences, in [0,1]; 0 when the original is empty. */
-  recoveredShare: number;
-  /** Rebuild sentences: matched pairs + additions. */
-  yourSentences: number;
-  /** yourSentences - originalSentences. Negative when the rebuild is shorter. */
-  sentenceDelta: number;
-}
-
-export function fidelityMetrics(alignment: Alignment): FidelityMetrics;
-```
-
-Definitions, fixed here so every surface agrees:
-- **Share of hinted ideas recovered.** Every original sentence received a hint
-  during condensing (the `hints` array is parallel to `passage.sentences`), so
-  "hinted ideas" = original sentences. A hinted idea is *recovered* when its
-  sentence appears in a `matched` pair. `recoveredShare` =
-  matched / (matched + omissions). Guard the zero denominator: return 0, not
-  NaN.
-- **Sentence-count difference.** `sentenceDelta` = (matched + additions) −
-  (matched + omissions). Zero means the rebuild used exactly as many sentences
-  as the original. It is a signed count, not a score; the UI shows it with an
-  explicit sign.
-
-### Date label — `src/lib/attempts.ts` (extend)
-
-Add one formatter beside `ripeLabel`, reusing the module's `MONTHS` array so
-output is deterministic and locale-independent (matching the existing style):
-
-```ts
-/** "Sep 15, 2026" style label for ledger entries and chart axis ends. */
-export function dateLabel(ms: number): string;
-```
-
-### Transfer — `src/lib/transfer.ts` (new)
-
-Pure build/parse; the file I/O lives at the component edge.
+Pure, deterministic, no I/O. This is where every gate and step decision lives so
+it is unit-testable without a DOM.
 
 ```ts
 import type { AttemptRecord } from "./db";
 
-export const EXPORT_FORMAT = "franklins-gym-record";
-export const EXPORT_VERSION = 1;
-/** Boundary caps for import. A file past either is refused before parsing rows. */
-export const IMPORT_MAX_ATTEMPTS = 2000;
-export const IMPORT_MAX_BYTES = 10 * 1024 * 1024;
+export const FIRST_RUN_DISMISSED_KEY = "firstRun.dismissed";
+export const FIRST_RUN_MICRO_DRILL_KEY = "firstRun.microDrillId";
 
-export interface ExportFile {
-  format: typeof EXPORT_FORMAT;
-  version: typeof EXPORT_VERSION;
-  exportedAt: number; // epoch ms, passed in by the caller
-  attempts: AttemptRecord[];
+/** Fixed short seeds for the guided drill and its warm-up. Both must exist in
+ *  seedPassages and be distinct. Verified by a test. */
+export const MICRO_DRILL_PASSAGE_ID = "wilde-dorian-gray-preface";
+export const WARMUP_PASSAGE_ID = "lincoln-gettysburg-address";
+
+/** True once any attempt is reconstructed. The master switch: when true, no
+ *  first-run surface shows, ever. */
+export function hasCompletedAttempt(attempts: AttemptRecord[]): boolean;
+
+export type StepState = "todo" | "active" | "done";
+
+export interface GuideStep {
+  label: string;      // one short imperative sentence (from the copy inventory)
+  state: StepState;
 }
 
-/** Pretty-printed (2-space) JSON so the file is human-readable in any editor. */
-export function buildExport(attempts: AttemptRecord[], now: number): string;
+export type GuideView =
+  | { kind: "hidden" }
+  | { kind: "start"; steps: GuideStep[] }                       // no drill yet
+  | { kind: "condensing"; attemptId: string; steps: GuideStep[] }
+  | { kind: "waiting"; attemptId: string; warmup: boolean; steps: GuideStep[] }
+  | { kind: "ripe"; attemptId: string; steps: GuideStep[] };
 
-export type ParseResult =
-  | { ok: true; attempts: AttemptRecord[] }
-  | { ok: false; reason: "unreadable" | "wrong-format" | "bad-record" | "too-large" };
+export interface FirstRunInput {
+  attempts: AttemptRecord[];
+  microDrillId: string | undefined;   // from settings
+  dismissed: boolean;                  // from settings
+  now: number;
+}
 
-export function parseExport(text: string): ParseResult;
+/**
+ * The single source of truth for what the guide shows.
+ * - Returns { kind: "hidden" } when dismissed OR hasCompletedAttempt(attempts).
+ * - Otherwise resolves the tracked attempt: the microDrillId attempt if
+ *   present, else the most recent non-reconstructed attempt (by createdAt),
+ *   else none.
+ * - With no tracked attempt -> "start".
+ * - Tracked attempt by attemptState (reuse src/lib/attempts.ts):
+ *     condensing -> "condensing"; vaulted -> "waiting"; ripe -> "ripe".
+ *     ("reconstructed" cannot occur: it would make hasCompletedAttempt true.)
+ * - warmup is true in "waiting" only when the tracked attempt's delayType is
+ *   "micro" (a 3-day standard wait shows no warm-up).
+ * - steps: exactly three GuideStep entries, labels from the copy inventory,
+ *   with deterministic states:
+ *     step 1 (note):    active while "start"/"condensing"; else "done".
+ *     step 2 (warm-up): "todo" in "start"/"condensing"; "active" in "waiting";
+ *                       "done" in "ripe".
+ *     step 3 (rebuild): "todo" until "ripe"; "active" in "ripe".
+ */
+export function firstRunView(input: FirstRunInput): GuideView;
+
+/** True when the populated-dashboard pipeline nudge should show: there is at
+ *  least one attempt, and first-run is active (not dismissed, not completed). */
+export function showPipelineNudge(
+  attempts: AttemptRecord[],
+  dismissed: boolean,
+): boolean;
 ```
 
-`parseExport` validates at the boundary (types, sizes, formats), strictly
-enough that an imported record can never crash a screen or wedge routing:
-- `unreadable`: not valid JSON.
-- `wrong-format`: `format` !== `EXPORT_FORMAT` or `version` !== 1 or
-  `attempts` is not an array.
-- `too-large`: more than `IMPORT_MAX_ATTEMPTS` records (the byte cap is
-  checked against `file.size` before reading, in the component).
-- `bad-record` when any record fails the row checks:
-  - `id` nonempty string; `status` one of `condensing | vaulted |
-    reconstructed`; `createdAt` a finite number.
-  - `passage` object: `title` string, `author` string, `source` string,
-    `year` number or null, `originalPassageId` string or null, `isCustom`
-    boolean, `sentences` a nonempty string array with length ≤
-    `MAX_SENTENCES` (import from `src/data/seedPassages.types`).
-  - `hints` a string array with `hints.length === passage.sentences.length`;
-    `cursor` a finite number.
-  - When present: `delayType` one of `standard | micro`; `vaultedAt`,
-    `vaultedUntil`, `reconstructedAt` finite numbers; `reconstructionText` a
-    string.
-  - `alignment` when present: `version === 1`, `pairs` an array where each
-    pair has `matchType` in `matched | omission | addition`, `original` and
-    `your` string-or-null consistent with the matchType (`omission` has
-    `your: null`, `addition` has `original: null`, `matched` has both),
-    span arrays either null or arrays of `{ text: string, kind: "same" |
-    "onlyInOriginal" | "onlyInYours" }`, and finite `originalWords`,
-    `yourWords`, `lengthDelta`, `similarity`.
-  - **Status coherence (this prevents a routing trap):** a `reconstructed`
-    record MUST have `alignment`, `reconstructionText`, and `reconstructedAt`;
-    a `vaulted` record MUST have finite `vaultedAt` and `vaultedUntil`. A
-    reconstructed record without an alignment would bounce forever between
-    `/align/:id` (redirects to reconstruct when `alignment` is absent) and
-    `/reconstruct/:id` (redirects to align when status is `reconstructed`).
-    Refuse the record instead.
-- Unknown extra properties on a record are preserved as-is (copy the object
-  through), so a future export version downgrades gracefully.
-- Validation failures name no row internals to the user; the UI shows one
-  in-voice message (below).
+Reuse `attemptState` from `src/lib/attempts.ts` for ripeness; do not
+reimplement the clock logic.
 
-Round-trip guarantee: `buildExport` serializes the records exactly as stored
-(every field of `AttemptRecord` is JSON-safe: strings, numbers, booleans,
-nulls, arrays, plain objects), so `parseExport(buildExport(rows, t))` yields
-records deeply equal to `rows`. Pin this with a test.
+### Demo builder — `src/lib/demo.ts` (new)
 
-Add a small download helper in `transfer.ts`, mirroring `downloadIcs` in
-`src/lib/ics.ts` (temporary anchor + object URL, no network):
+Pure, deterministic. Builds one reconstructed `AttemptRecord` from a seed
+passage and a canned imperfect rebuild, run through the real alignment engine so
+the demo shows genuine marks.
 
 ```ts
-export function downloadJson(filename: string, contents: string): void;
+import type { AttemptRecord } from "./db";
+
+/** Stable id so a re-seed is idempotent even if the empty-store guard is
+ *  bypassed. */
+export const DEMO_ATTEMPT_ID = "demo-first-minute";
+
+/** A reconstructed attempt with a real cached alignment that contains at least
+ *  one omission and one addition (genuine gaps). now sets createdAt,
+ *  reconstructedAt; vaultedAt/vaultedUntil are set in the past. */
+export function buildDemoAttempt(now: number): AttemptRecord;
 ```
 
-Filename at the call site: `franklins-gym-record-YYYY-MM-DD.json` derived from
-`Date.now()` at click time.
+Reuse the worked-example prose so demo prose lives in one place: export
+`EXAMPLE_SEED_ID` and keep `EXAMPLE_REBUILD` from `src/data/workedExample.ts`,
+and build the demo from that seed's `sentences` plus `EXAMPLE_REBUILD`, aligned
+with `alignSentences(passage.sentences, segmentSentences(EXAMPLE_REBUILD))`.
+Fill `hints` with one short note per sentence (length equals
+`passage.sentences.length`), `status: "reconstructed"`, `delayType: "micro"`,
+`cursor` at the end, and `reconstructionText: EXAMPLE_REBUILD`. The existing
+`getWorkedExample` already proves this alignment carries an omission and an
+addition; a demo test re-asserts it.
 
 ### Store — `src/lib/store.ts` (extend; keep all existing helpers)
 
 ```ts
-// Merges imported records into the attempts store in one readwrite
-// transaction. Records whose id already exists are left untouched (imports
-// never overwrite newer local work). Returns what happened for the UI.
-export async function importAttempts(
-  records: AttemptRecord[],
-): Promise<{ added: number; skipped: number }>;
+/**
+ * Seeds the demo attempt for the SEED_DEMO staging demo. No-op when the store
+ * already holds any attempt, so it never clobbers real user work and is
+ * idempotent across restarts. now is passed in for testability.
+ */
+export async function seedDemoAttempt(now: number): Promise<void>;
 ```
 
-Reads for the ledger reuse the existing `listAttempts()` (one indexed
-`getAll`). The screen filters to `status === "reconstructed"` and sorts by
-`reconstructedAt` descending (tie-break and fallback: `createdAt`). One read
-serves the list, the trend, and the export button. Bound rationale: records
-are size-capped at the paste boundary (400 words), so even years of daily
-training stay a few thousand rows read once per visit; what must never be
-unbounded is the DOM, which is paginated below.
+Implementation: `if ((await countAttempts()) > 0) return;` then
+`db.put("attempts", buildDemoAttempt(now))`. The existing `getSetting` /
+`putSetting` cover the first-run settings keys; no new settings helper needed.
+
+### Config — `src/lib/config.ts` (extend)
+
+Add `seedDemo: boolean` to `AppConfig`, and `SEED_DEMO?: string` to
+`RuntimeConfig`. Read it with the existing runtime-over-build precedence and the
+placeholder guard, then parse to a boolean:
+
+```ts
+// Truthy tokens (case-insensitive): "1", "true", "yes", "on".
+// Everything else, including "", "0", "false", is false.
+function truthy(value: string): boolean { /* ... */ }
+
+// in getConfig():
+seedDemo: truthy(pick("SEED_DEMO", import.meta.env.VITE_SEED_DEMO)),
+```
+
+`pick` already returns "" when unset, so `seedDemo` defaults to `false` in dev,
+test, and any deploy that does not set the flag.
+
+### Container plumbing — `docker-entrypoint.sh` and `.env.example`
+
+`docker-compose.staging.yml` already passes `SEED_DEMO` (default `"1"`), but the
+entrypoint does not forward it to the browser. Add one line to the generated
+`env-config.js`:
+
+```sh
+window.__APP_CONFIG__ = {
+  UMAMI_URL: "${UMAMI_URL:-}",
+  UMAMI_WEBSITE_ID: "${UMAMI_WEBSITE_ID:-}",
+  SENTRY_DSN: "${SENTRY_DSN:-}",
+  SEED_DEMO: "${SEED_DEMO:-}"
+};
+```
+
+Add a commented placeholder to `.env.example` so local dev can opt in:
+
+```
+# Demo seed for staging. Set to 1 to open on a ready-made demo attempt.
+# Leave blank for normal use.
+# VITE_SEED_DEMO=
+```
+
+No secret is involved; this stays consistent with the existing runtime-config
+pattern.
+
+### Bootstrap — `src/components/Bootstrap.tsx` (extend)
+
+After the DB opens successfully and before rendering children, seed the demo
+when configured. Keep it non-fatal: a demo-seed failure must not block the app.
+
+```ts
+open()
+  .then(async () => {
+    if (getConfig().seedDemo) {
+      try { await seedDemoAttempt(Date.now()); } catch { /* demo is optional */ }
+    }
+    return active && setState("ready");
+  })
+  .catch(() => active && setState("error"));
+```
+
+Because the seed is gated on an empty store, a returning real user is never
+reseeded. The injectable `open` prop stays; tests that do not set `seedDemo`
+seed nothing.
+
+### First-run guide — `src/components/FirstRunGuide.tsx` (new) + `.module.css`
+
+Presentational-plus-actions component rendered by `Home`. It receives the loaded
+attempts and a reload callback; it reads its own settings and computes its view
+with `firstRunView`.
+
+Props:
+
+```ts
+interface FirstRunGuideProps {
+  attempts: AttemptRecord[];   // already loaded by Home
+  now: number;                 // Date.now() captured once by Home per render
+  onChanged: () => void;       // ask Home to reload attempts after an action
+}
+```
+
+Behavior:
+- On mount (and after actions) load `FIRST_RUN_DISMISSED_KEY` and
+  `FIRST_RUN_MICRO_DRILL_KEY` via `getSetting`. While loading settings, render
+  nothing (the guide is additive; a one-frame absence is fine).
+- Compute `view = firstRunView({ attempts, microDrillId, dismissed, now })`.
+  Render nothing when `view.kind === "hidden"`.
+- Render a card: a heading, the three-step checklist (each step shows its
+  imperative label and a tick/active/idle marker reflecting `step.state`), the
+  active-step action button, and a "Skip the guide" text button.
+- **Actions:**
+  - `start` (view `"start"`): create the micro-drill attempt from the fixed
+    seed snapshot (`createAttempt`), `putSetting(FIRST_RUN_MICRO_DRILL_KEY,
+    attempt.id)`, then `navigate('/condense/' + attempt.id)`. Guard against
+    double taps with a `starting` flag; the button shows a busy label within
+    100ms.
+  - `"condensing"`: the action is a link "Keep noting" to
+    `/condense/:attemptId`.
+  - `"waiting"`: when `warmup` is true, render the **warm-up block** (below) and
+    the live countdown `ripeLabel(vaultedUntil, now)`; the rebuild action is
+    disabled/absent until ripe.
+  - `"ripe"`: the action is a link "Rebuild now" to `/reconstruct/:attemptId`.
+  - `skip` (every view): `putSetting(FIRST_RUN_DISMISSED_KEY, true)`, then
+    `onChanged()` so Home re-renders without the guide.
+- **Warm-up block:** heading "Warm-up reading", one line, then the
+  `WARMUP_PASSAGE_ID` seed's sentences rendered read-only as a list. It never
+  shows the vaulted passage. It has no input and writes nothing.
+- The `start` view also offers the existing secondary links "Browse passages"
+  (`/library`) and "See an example" (`/example`) as subordinate actions, so a
+  new user who prefers the library still has it.
+
+Accessibility: the checklist is a real `<ol>`; each step's state is conveyed by
+text (for example a leading "Done" / "Now" label or `aria-label`), not by color
+alone. The active action is one clear primary control; "Skip the guide" is a
+visibly subordinate button. Touch targets ~44px.
+
+### Home — `src/routes/Home.tsx` (extend)
+
+- Capture `now` once (already does) and compute
+  `completed = hasCompletedAttempt(attempts)`.
+- **Empty store (`attempts.length === 0`):** if first-run is active (not
+  dismissed), render `<FirstRunGuide .../>` as the primary surface. If the guide
+  resolves to hidden (user skipped earlier), fall back to the existing
+  `EmptyState` unchanged. The guide loads `dismissed` itself, so Home can always
+  render the guide when the store is empty and let the guide decide; when the
+  guide renders nothing, Home shows the `EmptyState`. Implementer's choice
+  between (a) letting the guide report "hidden" up via `onChanged`/state or
+  (b) Home reading `dismissed` too. Keep whichever is simplest; the observable
+  rule is: empty store + not dismissed → guide; empty store + dismissed →
+  `EmptyState`.
+- **Populated store:** render the guide banner above the pipeline list (it shows
+  itself only while first-run is active and hides once completed). Below or
+  above the list, when `showPipelineNudge(attempts, dismissed)` is true, render
+  the one-line **pipeline nudge**. Keep the dashboard uncluttered: the nudge is
+  one short sentence, not a card competing with the guide.
+- Nothing else about the pipeline list, ordering, or cap changes.
+
+### Condense — `src/routes/Condense.tsx` (extend)
+
+Default the delay chooser to `micro` for the guided micro-drill attempt so the
+first session ends the same day. In the load `.then`, after the attempt loads,
+read `getSetting<string>(FIRST_RUN_MICRO_DRILL_KEY)`; if it equals the loaded
+attempt id, `setDelay("micro")`. Otherwise leave `DEFAULT_DELAY` ("standard").
+The user can still change it (the chooser stays). This is the only Condense
+change; the sentence-by-sentence capture and the vault guard are untouched.
 
 ### Routes and nav
 
-- `src/App.tsx`: add `<Route path="/ledger" element={<Ledger />} />`.
-- `src/components/AppLayout.tsx`: add a second nav link, "Ledger" →
-  `/ledger`, beside "Library" (same `navLink` class; nav stays two links, no
-  menu). Touch target per the existing header sizing.
-- `nginx.conf` SPA fallback already serves deep links (proven for
-  `/library` in e2e); `/ledger` needs no server change.
-
-### Ledger screen — `src/routes/Ledger.tsx` (new) + `Ledger.module.css`
-
-Load once with `listAttempts()`; `Date.now()` once per render pass as in
-`Home.tsx`.
-
-**States:**
-- **Loading**: `<Skeleton lines={6} label="Loading your ledger" />`.
-- **Error** (read failed): `ErrorState` in the established voice, title
-  "Your ledger did not load", message "This device blocked local storage.
-  Allow it, then try again.", action "Try again" re-runs the load.
-- **Empty** (zero *reconstructed* attempts, regardless of in-progress ones):
-  `EmptyState` with:
-  - title: "Your record starts with the first rebuild"
-  - description: "Every aligned attempt files here with its date, its
-    fidelity numbers, and a link back to the alignment."
-  - primary: link "Browse passages" → `/library`
-  - secondary: the **import control** (below), labeled "Restore from a file".
-    A returning user on a fresh device lands here holding an export file;
-    import must be reachable from the empty state, not hidden behind having
-    data.
-- **Populated**: heading "Your ledger", then the trend section, then the list,
-  then the files block.
-
-**Trend section** (populated state only):
-- Section heading "Trend".
-- One shared caption line: "How much of the hinted substance each rebuild
-  recovered. Fidelity, never a grade."
-- Two charts (see `TrendChart` below), each with its own title and, directly
-  under the title, the small tag "Reconstruction fidelity" (this satisfies
-  "each explicitly labeled", per chart, not just per section):
-  1. "Hinted ideas recovered" — `recoveredShare` as a percent, y fixed 0 to
-     100 with ticks at 0 / 50 / 100.
-  2. "Sentence count difference" — `sentenceDelta`, symmetric y domain
-     `[-D, +D]` where `D = max(3, max |delta|)`, ticks at −D / 0 / +D, the
-     zero gridline drawn slightly stronger and labeled 0. Caption under this
-     chart: "0 means your rebuild used the same number of sentences as the
-     original."
-- Points are the reconstructed attempts in `reconstructedAt` ascending order
-  (oldest left, newest right), evenly spaced by attempt index; the x axis ends
-  are labeled with `dateLabel` of the first and last plotted attempts. Even
-  spacing is deliberate: the story is fidelity per attempt, and exact dates
-  live on the entries below.
-- Plot at most the most recent `TREND_MAX_POINTS = 60` attempts. When older
-  ones fall outside the window, say so under the charts: "Showing the last 60
-  attempts." Never truncate silently.
-- One point renders as a single dot with its value label; the connecting line
-  needs two.
-
-**The list**:
-- An ordered list of completed attempts, newest first. Each entry is one
-  `<li>` containing a single block link to `/align/:id` (whole row tappable,
-  min height ~44px) with:
-  - the date (`dateLabel(reconstructedAt)`),
-  - passage title, and author when present,
-  - both metric values as plain text, e.g. "Recovered 7 of 9" and
-    "9 sentences in the original, 8 in yours",
-  - the action wording "See alignment" (visible text or the row's clear
-    affordance; the accessible name of the link must include the passage
-    title so rows are distinguishable to a screen reader).
-- These per-entry values double as the charts' accessible data table, so the
-  numbers are never locked behind the SVG.
-- **Pagination**: render the first `LEDGER_PAGE_SIZE = 20` entries; a
-  "Show more" button (btn-secondary) reveals the next 20 each press and
-  disappears when everything is shown. The DOM never renders unbounded rows.
-
-**Files block** (populated state only), at the bottom:
-- Small heading "Your files" and one line: "Your whole record as one plain
-  JSON file. Yours to keep."
-- Button "Export record" (btn-secondary): `buildExport(allAttempts,
-  Date.now())` → `downloadJson`. Exports every attempt, all statuses.
-- The **import control**, labeled "Import record": a visually-styled
-  `<label>` wrapping `<input type="file" accept=".json,application/json">`
-  (the input itself visually hidden but focusable, so keyboard and screen
-  reader users reach it; the label styled as btn-secondary). On file select:
-  - refuse when `file.size > IMPORT_MAX_BYTES` with the error line below;
-  - read text, `parseExport`, then `importAttempts`;
-  - on success, reload the list and show an inline status line, `role="status"`:
-    "Restored 12 attempts." or, with duplicates,
-    "Restored 3 attempts. 2 were already here." A zero-added import reads
-    "All of those attempts were already here."
-  - on any parse failure, one inline in-voice error line: "That file did not
-    match. Choose a JSON export from Franklin's Gym."
-  - Give the control a busy/disabled state while reading so the tap has
-    sub-100ms feedback even on a big file.
-- The same import control instance is what the empty state embeds as its
-  secondary action (share the component or extract a small
-  `ImportControl` inside `Ledger.tsx`; implementer's choice, no new file
-  required).
-
-### Trend chart — `src/components/TrendChart.tsx` (new) + `TrendChart.module.css`
-
-One reusable single-series chart; the ledger renders two instances. Titles and
-the fidelity tag are rendered by `Ledger.tsx`; the component only plots.
-
-```ts
-export interface TrendPoint {
-  date: number;  // epoch ms, for the hover title
-  value: number;
-}
-
-interface TrendChartProps {
-  points: TrendPoint[];          // time-ascending
-  yMin: number;
-  yMax: number;
-  yTicks: number[];              // e.g. [0, 50, 100] or [-3, 0, 3]
-  formatValue: (v: number) => string; // "78%" or "+1"
-  zeroEmphasis?: boolean;        // stronger gridline at y=0
-  ariaLabel: string;             // one-sentence summary, built by the caller
-}
-```
-
-Rendering rules (these follow the house dataviz method; they are spec, not
-taste):
-- **One y axis per chart, one series per chart.** The two metrics have
-  different scales; they are two charts, never one dual-axis chart.
-- Inline SVG sized to the container: measure the container width with a
-  `ResizeObserver` (fall back to a sane default before first measure) and
-  render at native pixels, height ~140px. Never a fixed 600px viewBox scaled
-  down, which would shrink axis text unreadably at 390px.
-- Line: 2px, `stroke-linejoin: round`, `stroke-linecap: round`, in
-  `var(--color-accent)`. Dots: r=4, filled accent, with a 2px ring in
-  `var(--color-surface)` so overlapping points stay legible.
-- Gridlines at the given ticks: 1px solid `var(--color-border)`, recessive;
-  the zero line uses `var(--color-text-muted)` at 1px when `zeroEmphasis`.
-- Axis and tick text in `var(--color-text-muted)` at `var(--text-xs)`; never
-  in the series color. No legend (single series; the title above names it).
-- **Label selectively**: only the last point gets a direct value label
-  (`formatValue`), placed clear of the dot; every other value rides the tick
-  lines and the list below. Never a number on every point.
-- Each dot carries a native SVG `<title>` ("Sep 15, 2026. 78%") for hover;
-  the SVG root has `role="img"` and `aria-label={ariaLabel}` (for example
-  "Hinted ideas recovered across 12 attempts, latest 78 percent."). The
-  per-entry text in the list is the accessible data table. Deeper
-  interactivity (crosshair, pinned tooltip) is EPIC 6 polish; do not build it
-  here.
-- Both themes already work from the tokens used above; no new color tokens.
+No route or nav changes. The guide and nudge live inside the existing home
+dashboard. `/example`, `/library`, `/condense`, `/reconstruct`, `/align`, and
+`/ledger` are unchanged.
 
 ### Copy inventory (ships verbatim; already swept)
 
-Nav: "Ledger". Headings: "Your ledger", "Trend", "Your files".
-Empty state: "Your record starts with the first rebuild" / "Every aligned
-attempt files here with its date, its fidelity numbers, and a link back to
-the alignment." / "Browse passages" / "Restore from a file".
-Charts: "Hinted ideas recovered", "Sentence count difference",
-"Reconstruction fidelity", "How much of the hinted substance each rebuild
-recovered. Fidelity, never a grade.", "0 means your rebuild used the same
-number of sentences as the original.", "Showing the last 60 attempts."
-List: "See alignment", "Show more", "Recovered 7 of 9",
-"9 sentences in the original, 8 in yours".
-Files: "Your whole record as one plain JSON file. Yours to keep.",
-"Export record", "Import record", "Restored 12 attempts.",
-"Restored 3 attempts. 2 were already here.",
-"All of those attempts were already here.",
-"That file did not match. Choose a JSON export from Franklin's Gym."
-States: "Loading your ledger", "Your ledger did not load", "This device
-blocked local storage. Allow it, then try again.", "Try again".
+Guide heading: "Finish your first loop today".
+Guide lede: "Note a short passage, pause a few minutes, then rebuild it. Your
+first alignment lands today."
+Steps: "Note each sentence in a few words.", "Read the warm-up while the vault
+holds.", "Rebuild the passage and see your alignment."
+Actions: "Start the quick drill", "Keep noting", "Rebuild now", "Skip the
+guide", "Browse passages", "See an example".
+Warm-up: "Warm-up reading", "Read this while your passage ripens. The wait
+keeps your memory honest."
+Pipeline nudge: "Condense a few passages so one is always ripe when you come
+back."
+Step status labels (for screen readers / non-color cues): "Done", "Now",
+"Next".
+
+Countdown text reuses `ripeLabel` (for example "Ripe in 12 minutes", "Ready"),
+already swept in `src/lib/attempts.ts`. The demo attempt reuses existing
+`AttemptCard` copy and the real passage title; it introduces no new strings.
+
+`src/test/copy-sweep.test.ts` scans every new `src` file automatically. Every
+string above is free of em/en dashes, banned LLM vocabulary, and negative
+empty-state phrasing. Keep it green.
 
 ---
 
 ## QUALITY BAR application (binding on the new surfaces)
 
-- **Perceived speed.** One indexed `getAll` per visit; metrics derive in
-  microseconds; charts render synchronously. The list DOM is paginated at 20;
-  the charts cap at 60 points. Export serializes in memory and downloads; the
-  import control shows a busy state within 100ms. No white flash: loading is a
-  `Skeleton` inside `AppLayout`.
-- **Mobile-first (390px).** The ledger stacks to one column; charts fill the
-  container width via measurement (no horizontal scroll, no scaled-down
-  text); rows and buttons are ~44px targets. The e2e viewport is 390px; keep
-  it green.
-- **Designed states.** Empty, loading, and error states are specified above,
-  in the product's voice. The import success and failure lines are designed
-  inline states, `role="status"` / `role="alert"`, never a browser alert.
-- **First-run.** The ledger empty state names what accumulates and points to
-  the first action ("Browse passages"), and offers restore for returning
-  users. The guided walkthrough remains EPIC 5; do not build any tour here.
-- **Security hygiene.** No server, no network call. The import boundary
-  validates types, sizes, and formats before anything touches the store
-  (byte cap, record cap, per-field checks, status coherence). All imported
-  text renders as escaped React text nodes. The export file stays local
-  (Blob download); analytics never receives passage, hint, or metric data.
-  No PII anywhere: the export carries no user identity.
-- **Accessibility.** Charts: `role="img"` with a real summary, native
-  `<title>` on dots, and every plotted value available as text in the list.
-  The file input is focusable and properly labeled; status lines use
-  `role="status"`/`role="alert"`. Semantic structure: one `h1`, section
-  headings, a real `<ol>`/`<ul>` for entries; visible focus states via
-  existing global styles; text never wears the chart series color.
-- **Copy.** Every string above is in the inventory and swept: no em/en
-  dashes, no banned vocabulary, no negative empty-state phrasing.
-  `src/test/copy-sweep.test.ts` scans all new `src` files automatically;
-  keep it green.
+- **Perceived speed.** The guide reads two settings keys and renders
+  synchronously off attempts Home already loaded. "Start the quick drill" and
+  "Skip the guide" show a busy/updated state within 100ms. The demo seed is one
+  local `put` gated on an empty store; it adds no visible delay to first render
+  (Bootstrap already shows a skeleton while opening). No new unbounded lists;
+  the warm-up renders one short seed passage (≤3 sentences).
+- **Mobile-first (390px).** The guide card, checklist, warm-up block, and nudge
+  stack to one column with no horizontal scroll; buttons and step rows are
+  ~44px targets. The e2e viewport is 390px; keep it green.
+- **Designed states.** The guide IS a designed first-run surface. The empty
+  state after a skip falls back to the existing designed `EmptyState`. The
+  warm-up block gives the wait a purpose instead of a bare countdown.
+- **First-run (this EPIC is the clause).** The guide actively walks a brand-new
+  user through the core action once: three steps, each one short imperative
+  anchored to the real control, skippable at every step, shown only until the
+  first success, and never to a returning user (gate: `hasCompletedAttempt`).
+  The micro-drill makes the first success reachable the same day. §4 and §7 are
+  met together: the guide points at controls, it does not lecture.
+- **Security hygiene.** No server, no network call, no new route. All passage
+  and warm-up text renders as escaped React text nodes. The vault guard is not
+  weakened; the warm-up never renders the vaulted passage. `SEED_DEMO` is a
+  non-secret display flag read from runtime config like the others; no PII, no
+  key, nothing logged.
+- **Accessibility.** The checklist is a semantic `<ol>` with text status cues
+  (not color alone), one clear primary action per state, a labeled subordinate
+  "Skip the guide", visible focus via existing global styles, full keyboard
+  reach.
+- **Copy.** Every new string is in the inventory above and swept: no em/en
+  dashes, no banned vocabulary, no negative phrasing. Positive, plain, one idea
+  per sentence.
 
 ---
 
 ## Ordered task list (each item is provable)
 
-1. **Metrics module.** `src/lib/metrics.ts` with `fidelityMetrics`.
-   - AC: for a hand-built alignment of 2 matched + 1 omission + 1 addition it
-     returns originalSentences 3, recoveredSentences 2, recoveredShare 2/3,
-     yourSentences 3, sentenceDelta 0; an all-omissions alignment returns
-     share 0; an empty-pairs alignment returns all zeros with no NaN; same
-     input twice gives identical output.
+1. **Config: `seedDemo`.** Extend `src/lib/config.ts` with `seedDemo` and the
+   `truthy` parser; extend `docker-entrypoint.sh` and `.env.example`.
+   - AC: `getConfig().seedDemo` is `false` when nothing is set; `true` for
+     runtime `SEED_DEMO` in {"1","true","yes","on"} (case-insensitive); `false`
+     for "", "0", "false", and an uninterpolated `${SEED_DEMO}` placeholder;
+     runtime beats build env, matching the existing precedence.
 
-2. **Date label.** `dateLabel` in `src/lib/attempts.ts`.
-   - AC: a known epoch renders "Sep 15, 2026" style with the correct month
-     name and year; existing `attempts.test.ts` cases stay green.
+2. **First-run logic.** `src/lib/firstRun.ts` with constants,
+   `hasCompletedAttempt`, `firstRunView`, `showPipelineNudge`.
+   - AC: `hasCompletedAttempt` is true iff some attempt is `reconstructed`.
+   - AC: `firstRunView` returns `hidden` when dismissed or when any attempt is
+     reconstructed; `start` with no tracked attempt; `condensing`/`waiting`/
+     `ripe` matching the tracked attempt's `attemptState`; falls back to the
+     most recent non-reconstructed attempt when `microDrillId` is unset; sets
+     `warmup` true only for a `micro`-delay waiting attempt; returns exactly
+     three steps with the documented deterministic states; same input twice
+     gives identical output.
+   - AC: `MICRO_DRILL_PASSAGE_ID` and `WARMUP_PASSAGE_ID` both exist in
+     `seedPassages`, are distinct, and are `short` band (assert against the
+     seed data).
 
-3. **Transfer module.** `src/lib/transfer.ts`: `buildExport`, `parseExport`,
-   `downloadJson`, the format constants and caps.
-   - AC: `buildExport` output is valid pretty-printed JSON containing format,
-     version, exportedAt, and every attempt field;
-     `parseExport(buildExport(rows, t))` returns records deeply equal to
-     `rows` (round trip); wrong `format`, wrong `version`, non-JSON, an
-     over-cap attempts array, and each documented bad-record case (including
-     a `reconstructed` record missing its alignment, and a `vaulted` record
-     missing `vaultedUntil`) return the right `ok: false` reason; unknown
-     extra fields on a record survive the round trip.
+3. **Demo builder + store seed.** `src/lib/demo.ts` (`buildDemoAttempt`,
+   `DEMO_ATTEMPT_ID`) and `seedDemoAttempt` in `src/lib/store.ts`.
+   - AC: `buildDemoAttempt(now)` returns a `reconstructed` attempt whose cached
+     alignment has at least one `omission` and one `addition`, with
+     `hints.length === passage.sentences.length`, a non-empty
+     `reconstructionText`, and finite `reconstructedAt`/`vaultedAt`/
+     `vaultedUntil`; deterministic for a fixed `now`.
+   - AC (fake-indexeddb): `seedDemoAttempt` on an empty store adds exactly one
+     attempt (`hasCompletedAttempt(listAttempts())` becomes true); called again,
+     or on a store that already has any attempt, it adds nothing.
 
-4. **Store import.** `importAttempts` in `src/lib/store.ts`.
-   - AC (fake-indexeddb): importing N records into a fresh store adds N and
-     `listAttempts` deep-equals the originals; importing the same file again
-     reports added 0 / skipped N and changes nothing; a mixed import counts
-     added and skipped correctly; existing records are never overwritten.
+4. **Bootstrap seeding.** Wire `seedDemoAttempt` into `src/components/Bootstrap.tsx`
+   behind `getConfig().seedDemo`.
+   - AC: with `seedDemo` true and an empty store, after bootstrap the store
+     holds the demo attempt; with `seedDemo` false, nothing is seeded; a
+     seed failure does not put Bootstrap into the error state.
 
-5. **Trend chart component.** `src/components/TrendChart.tsx` per the
-   rendering rules.
-   - AC: renders a line and dots for given points with `role="img"` and the
-     given aria-label; exactly one direct value label (the last point);
-     renders tick lines for the given ticks and emphasizes zero when asked;
-     a single point renders one dot and no line; no legend element exists.
+5. **First-run guide component.** `src/components/FirstRunGuide.tsx` + css.
+   - AC: with an empty store and not dismissed, renders the heading, three
+     imperative steps, and "Start the quick drill"; clicking it creates an
+     attempt, persists `firstRun.microDrillId`, and navigates to
+     `/condense/:id`.
+   - AC: for a tracked `vaulted` `micro` attempt, renders the warm-up block
+     (the `WARMUP_PASSAGE_ID` sentences, never the vaulted passage) and a
+     countdown, with no active rebuild link; for a `ripe` attempt, renders
+     "Rebuild now" to `/reconstruct/:id`.
+   - AC: "Skip the guide" persists `firstRun.dismissed` and the guide
+     disappears; the guide renders nothing when any attempt is reconstructed.
 
-6. **Ledger screen + route + nav.** `src/routes/Ledger.tsx`, route in
-   `App.tsx`, "Ledger" link in `AppLayout.tsx`. List, trend section, files
-   block, empty/loading/error states, pagination.
-   - AC: with seeded reconstructed attempts the list shows them newest first
-     with dates, both metric texts, and links to `/align/:id`; with 45
-     completed attempts the DOM shows 20 rows, then 40 after one "Show more",
-     then all 45 and the button leaves; both chart titles render with the
-     "Reconstruction fidelity" tag; with zero completed attempts the empty
-     state renders its copy, a "Browse passages" link to `/library`, and the
-     import control; the nav link reaches `/ledger` from any screen.
+6. **Home wiring + pipeline nudge.** `src/routes/Home.tsx`.
+   - AC: empty store + not dismissed shows the guide; empty store + dismissed
+     shows the existing `EmptyState`; a populated first-run store shows the
+     pipeline nudge line; once an attempt is reconstructed, neither the guide
+     nor the nudge renders and the pipeline list is unchanged.
 
-7. **Export/import wiring.** The files block behaviors on the ledger screen.
-   - AC: "Export record" triggers a download whose contents parse back to
-     every stored attempt (assert via the transfer module with the anchor
-     mocked); a valid file import adds records, reloads the list, and shows
-     the restored count; a duplicate import shows the skipped wording; an
-     invalid file shows the in-voice error line and stores nothing; an
-     oversized file is refused before parsing.
+7. **Condense micro default.** `src/routes/Condense.tsx`.
+   - AC: when the loaded attempt id equals the persisted
+     `firstRun.microDrillId`, the delay chooser defaults to "In 15 minutes"
+     (`micro`); for any other attempt it defaults to "In 3 days" (`standard`);
+     existing Condense tests stay green.
 
 8. **E2E + sweep.** Extend `e2e/smoke.spec.ts`; run the full suite.
-   - AC: at 390px, the "Ledger" nav link opens `/ledger` showing the empty
-     state with no horizontal scroll; using Playwright `setInputFiles` with
-     an in-test JSON buffer (one valid reconstructed attempt built inline),
-     the entry appears with its date and its "See alignment" link, and
-     following it renders the alignment view (legend visible); `npm test`
-     including `copy-sweep.test.ts` passes.
+   - AC (clean store, 390px): the home dashboard shows "Finish your first loop
+     today" and "Start the quick drill"; clicking it opens `/condense/`; the
+     delay chooser shows "In 15 minutes" selected; after vaulting with the
+     micro delay the dashboard guide shows "Warm-up reading" and a countdown;
+     "Skip the guide" removes the guide and a reload keeps it gone. No
+     horizontal scroll.
+   - AC (`SEED_DEMO` via `page.addInitScript` setting
+     `window.__APP_CONFIG__ = { SEED_DEMO: "1" }` before load, 390px): the home
+     dashboard shows a demo attempt card with "See alignment"; following it
+     lands on `/align/` with the legend ("In the original" / "In yours") and at
+     least one `mark`. No horizontal scroll.
+   - AC: `npm test` including `copy-sweep.test.ts` passes.
 
 ---
 
 ## Test plan (which test proves each planner criterion)
 
-**Criterion 1 (dated list, newest first, bounded, links to alignment):**
-`Ledger.test.tsx` seeds fake-indexeddb with reconstructed attempts out of
-order and asserts rendered order (newest `reconstructedAt` first), the
-`dateLabel` text on each entry, hrefs to `/align/:id`, and the 20-per-page
-reveal behavior at 45 entries. The e2e import test proves the link lands on a
-real alignment.
+**Criterion 1 (guided path, 2 to 4 steps, imperative, anchored, skippable,
+only until first success, never for returning users):** `firstRun.test.ts` pins
+`firstRunView` (three steps, deterministic states, hidden when dismissed or
+completed) and `hasCompletedAttempt`. `FirstRunGuide.test.tsx` proves the
+rendered steps are imperative labels from the inventory, the active action
+navigates to the real control, "Skip the guide" persists dismissal and hides
+the guide, and a reconstructed attempt hides it. The e2e proves the visible
+walk at 390px and that skip survives a reload.
 
-**Criterion 2 (fidelity trend, labeled, no composite/streak/leaderboard):**
-`metrics.test.ts` pins both metric definitions on hand-built alignments and
-determinism. `TrendChart.test.tsx` proves the plotting contract.
-`Ledger.test.tsx` asserts each chart title renders with a "Reconstruction
-fidelity" tag, that the two charts are separate elements (no dual axis), and
-that the strings "streak", "score", and "leaderboard" appear nowhere in the
-rendered ledger.
+**Criterion 2 (micro-drill: short passage, minutes-long real delay filled by a
+distractor, session ends in an alignment the same day):** `firstRun.test.ts`
+asserts the drill passage is a short seed and that a `micro`-delay waiting view
+carries the warm-up. `FirstRunGuide.test.tsx` asserts the warm-up block renders
+the warm-up passage (and never the vaulted one) plus a countdown, and that the
+ripe view links to reconstruct. A unit assertion pins
+`DELAY_PRESETS.micro.ms < 24 * 60 * 60 * 1000` and that the guided attempt
+defaults to `micro` in `Condense.test.tsx`, which together prove the delay is
+real yet lands the alignment the same day. The reconstruct → align leg itself
+is already covered by `Reconstruct.test.tsx` and the existing alignment e2e; the
+e2e does not wait a real 15 minutes (stated here so no reviewer expects it).
 
-**Criterion 3 (plain-file export, import restores, fresh-store round trip):**
-`transfer.test.ts` proves the file is human-readable pretty JSON and the
-parse/build round trip. `store.test.ts` proves `importAttempts` into a fresh
-store reproduces `listAttempts` deep-equal, and the full chain
-(seed → `buildExport` → wipe → `parseExport` → `importAttempts` →
-`listAttempts` deep-equals the seed) runs in one test. `Ledger.test.tsx`
-covers the wired buttons and every user-facing outcome message. The e2e test
-proves a real file lands as a working ledger entry.
+**Criterion 3 (dashboard nudges building a pipeline, brief hint not a
+lecture):** `firstRun.test.ts` pins `showPipelineNudge`. `Home.test.tsx`
+asserts the one-line nudge appears on a populated first-run dashboard and is a
+single short sentence, and that it disappears once an attempt is reconstructed.
 
-**Criterion 4 (empty state explains and points to first action):**
-`Ledger.test.tsx` asserts the empty-state title and description, the primary
-"Browse passages" link, and the presence of the import control. The e2e test
-asserts it renders at 390px with no horizontal scroll.
+**Criterion 4 (`SEED_DEMO` opens on demo state reaching the alignment within a
+minute, no hand-crafted input):** `config.test.ts` pins `seedDemo` parsing.
+`demo.test.ts` proves `buildDemoAttempt` yields a reconstructed attempt with a
+real alignment carrying genuine gaps. `store.test.ts` proves `seedDemoAttempt`
+idempotency and empty-store gating. `Bootstrap.test.tsx` proves seeding happens
+only when `seedDemo` is true and the store is empty. The e2e proves the seeded
+app opens on a demo card and reaches `/align/` in one tap with a visible mark.
 
-Commands: `npm test` (Vitest, includes the copy sweep), `npm run test:e2e`
-(Playwright). Both must pass before the run ends.
+**Criterion 5 (none of the first-run additions appear once an attempt is
+completed):** `firstRun.test.ts` (`firstRunView` hidden, `showPipelineNudge`
+false when a reconstructed attempt exists) and `Home.test.tsx` (guide and nudge
+both absent, list intact) prove it directly.
+
+Commands: `npm test` (Vitest, includes the copy sweep), `bash scripts/e2e.sh`
+(Playwright in the pinned container). Both must pass before the run ends.
 
 ---
 
 ## Notes for the implementer
 
-- The metric trap is the binding condition of this EPIC. Two separate,
-  plainly labeled fidelity metrics; nothing combines them, ranks them, or
-  turns them into a grade, a streak, or a percentage of "quality". When a
-  design choice smells like gamification, it is out.
-- Metrics are DERIVED from the saved `Alignment` by `fidelityMetrics`, never
-  persisted and never recomputed from the raw texts (the saved alignment is
-  the fixed record of the confrontation).
-- `DB_VERSION` stays 1. This EPIC adds no fields and no stores.
-- Import never overwrites an existing id. The user's local record always
-  wins; imports only add.
-- The status-coherence checks in `parseExport` are load-bearing: a
-  `reconstructed` record without an alignment creates a redirect loop between
-  the align and reconstruct screens. Refuse such records at the boundary.
-- Two charts, one series each, one y axis each. Do not merge them, do not add
-  a legend to a single-series chart, do not label every point, and do not add
-  a chart library.
-- Chart width comes from measuring the container, not from scaling a fixed
-  viewBox; scaled text is unreadable at 390px.
-- Home (`Home.tsx`) is untouched. The dashboard is the pipeline; the ledger
-  is the archive.
+- The delay stays real. Do not add a shortcut past the wait. The micro preset
+  is already 15 minutes in `src/lib/delays.ts`; reuse it, do not change it, do
+  not add a preset.
+- The warm-up is reading material, not a drill. It has no input, computes
+  nothing, writes nothing, and never renders the vaulted passage.
+- One master gate: `hasCompletedAttempt`. Once any attempt is reconstructed,
+  the guide, the warm-up, and the nudge are all gone. The seeded `SEED_DEMO`
+  attempt is reconstructed, so it correctly suppresses the walkthrough. Prove
+  the walkthrough on a clean store.
+- Keep first-run state in the `settings` store. `DB_VERSION` stays 1; add no
+  `AttemptRecord` field and no object store.
+- Derive ripeness with `attemptState` from `src/lib/attempts.ts`; pass `now`
+  in. Do not reimplement the clock.
+- Reuse the worked-example prose for the demo so demo text lives in one place;
+  export `EXAMPLE_SEED_ID` from `workedExample.ts` rather than copying prose.
+- Keep the dashboard radically simple. The guide and nudge are additive and
+  quiet; one primary action per state, one short sentence for the nudge. If the
+  copy starts explaining the layout, fix the layout.
 - Keep every string from the copy inventory verbatim or re-sweep anything you
-  change (no dashes, no banned vocabulary, no negative phrasing). The sweep
-  test scans every new `src` file automatically.
+  change. The sweep test scans every new `src` file automatically.

@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ErrorState } from "../components/ErrorState";
 import { Skeleton } from "../components/Skeleton";
 import type { AttemptRecord, DelayType } from "../lib/db";
-import { getAttempt, saveHint, vaultAttempt } from "../lib/store";
+import { getAttempt, getSetting, saveHint, vaultAttempt } from "../lib/store";
+import { FIRST_RUN_MICRO_DRILL_KEY } from "../lib/firstRun";
 import { DEFAULT_DELAY, DELAY_PRESETS } from "../lib/delays";
 import styles from "./Condense.module.css";
 
@@ -32,7 +33,7 @@ export function Condense() {
       return;
     }
     getAttempt(attemptId)
-      .then((a) => {
+      .then(async (a) => {
         if (!live) return;
         if (!a) {
           setStatus("not-found");
@@ -42,6 +43,12 @@ export function Condense() {
           setStatus("vaulted");
           return;
         }
+        // The guided micro-drill attempt defaults to the short delay so the
+        // first session can end in an alignment the same day. The chooser stays,
+        // so any attempt can still be vaulted for the standard wait.
+        const microDrillId = await getSetting<string>(FIRST_RUN_MICRO_DRILL_KEY);
+        if (!live) return;
+        if (microDrillId === a.id) setDelay("micro");
         setAttempt(a);
         setHints(a.hints);
         setIndex(Math.min(a.cursor, a.passage.sentences.length - 1));

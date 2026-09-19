@@ -7,6 +7,7 @@ import {
   type SettingRecord,
 } from "./db";
 import { DELAY_PRESETS } from "./delays";
+import { buildDemoAttempt } from "./demo";
 
 // Typed data access over the IndexedDB connection. All reads and writes stay on
 // the device. No function here transmits data off the machine.
@@ -116,6 +117,15 @@ export async function importAttempts(
   }
   await tx.done;
   return { added, skipped };
+}
+
+// Seeds the demo attempt for the SEED_DEMO staging demo. No-op when the store
+// already holds any attempt, so it never clobbers real user work and is
+// idempotent across restarts. `now` is passed in for testability.
+export async function seedDemoAttempt(now: number): Promise<void> {
+  if ((await countAttempts()) > 0) return;
+  const db = await openDb();
+  await db.put("attempts", buildDemoAttempt(now));
 }
 
 export async function getSetting<T = unknown>(key: string): Promise<T | undefined> {

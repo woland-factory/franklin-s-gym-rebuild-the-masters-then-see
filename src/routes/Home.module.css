@@ -13,6 +13,17 @@
   font-weight: 700;
 }
 
+.nudge {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-4);
+}
+
+/* Space the first-run guide from the pipeline below it. */
+.head + section {
+  margin-bottom: var(--space-5);
+}
+
 .list {
   list-style: none;
   margin: 0;

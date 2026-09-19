@@ -7,7 +7,8 @@ cat > /usr/share/nginx/html/env-config.js <<EOF
 window.__APP_CONFIG__ = {
   UMAMI_URL: "${UMAMI_URL:-}",
   UMAMI_WEBSITE_ID: "${UMAMI_WEBSITE_ID:-}",
-  SENTRY_DSN: "${SENTRY_DSN:-}"
+  SENTRY_DSN: "${SENTRY_DSN:-}",
+  SEED_DEMO: "${SEED_DEMO:-}"
 };
 EOF
 exec nginx -g 'daemon off;'

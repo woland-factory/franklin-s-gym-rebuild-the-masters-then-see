@@ -8,7 +8,9 @@ import { seedPassages } from "./seedPassages";
 // nothing to the database and needs no delay. The original prose comes from
 // the seed library so the author's own text stays in one exempt place.
 
-const SEED_ID = "stevenson-travels-with-a-donkey";
+// Exported so the first-run demo builds from the same seed prose, keeping the
+// author's text in one place.
+export const EXAMPLE_SEED_ID = "stevenson-travels-with-a-donkey";
 
 // The sample rebuild. It keeps the first sentence with small changes, skips
 // the second, flattens the third, and adds a closing thought of its own, so
@@ -25,8 +27,8 @@ export interface WorkedExample {
 }
 
 export function getWorkedExample(): WorkedExample {
-  const passage = seedPassages.find((p) => p.id === SEED_ID);
-  if (!passage) throw new Error(`Seed passage ${SEED_ID} is missing`);
+  const passage = seedPassages.find((p) => p.id === EXAMPLE_SEED_ID);
+  if (!passage) throw new Error(`Seed passage ${EXAMPLE_SEED_ID} is missing`);
   const alignment = alignSentences(passage.sentences, segmentSentences(EXAMPLE_REBUILD));
   return { title: passage.title, author: passage.author, alignment };
 }

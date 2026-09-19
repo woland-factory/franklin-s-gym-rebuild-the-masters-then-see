@@ -6,12 +6,14 @@ export interface AppConfig {
   umamiUrl: string;
   umamiWebsiteId: string;
   sentryDsn: string;
+  seedDemo: boolean;
 }
 
 interface RuntimeConfig {
   UMAMI_URL?: string;
   UMAMI_WEBSITE_ID?: string;
   SENTRY_DSN?: string;
+  SEED_DEMO?: string;
 }
 
 declare global {
@@ -33,10 +35,17 @@ function pick(runtimeKey: keyof RuntimeConfig, buildValue: string | undefined): 
   return chosen || clean(buildValue);
 }
 
+// Truthy tokens (case-insensitive): "1", "true", "yes", "on". Everything else,
+// including "", "0", and "false", is false.
+function truthy(value: string): boolean {
+  return ["1", "true", "yes", "on"].includes(value.toLowerCase());
+}
+
 export function getConfig(): AppConfig {
   return {
     umamiUrl: pick("UMAMI_URL", import.meta.env.VITE_UMAMI_URL),
     umamiWebsiteId: pick("UMAMI_WEBSITE_ID", import.meta.env.VITE_UMAMI_WEBSITE_ID),
     sentryDsn: pick("SENTRY_DSN", import.meta.env.VITE_SENTRY_DSN),
+    seedDemo: truthy(pick("SEED_DEMO", import.meta.env.VITE_SEED_DEMO)),
   };
 }

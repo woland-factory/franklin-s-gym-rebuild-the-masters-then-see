@@ -3,6 +3,8 @@ import { AppLayout } from "./AppLayout";
 import { ErrorState } from "./ErrorState";
 import { Skeleton } from "./Skeleton";
 import { openDb, resetDbConnection } from "../lib/db";
+import { getConfig } from "../lib/config";
+import { seedDemoAttempt } from "../lib/store";
 
 interface BootstrapProps {
   children: ReactNode;
@@ -22,7 +24,16 @@ export function Bootstrap({ children, open = openDb }: BootstrapProps) {
     let active = true;
     setState("loading");
     open()
-      .then(() => active && setState("ready"))
+      .then(async () => {
+        if (getConfig().seedDemo) {
+          try {
+            await seedDemoAttempt(Date.now());
+          } catch {
+            // The demo seed is optional. A failure must not block the app.
+          }
+        }
+        return active && setState("ready");
+      })
       .catch(() => active && setState("error"));
     return () => {
       active = false;

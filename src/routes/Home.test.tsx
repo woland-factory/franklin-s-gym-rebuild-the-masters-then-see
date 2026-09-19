@@ -5,7 +5,14 @@ import { MemoryRouter } from "react-router-dom";
 import { IDBFactory } from "fake-indexeddb";
 import { Home } from "./Home";
 import { resetDbConnection, type PassageSnapshot } from "../lib/db";
-import { createAttempt, saveHint, saveReconstruction, vaultAttempt } from "../lib/store";
+import {
+  createAttempt,
+  putSetting,
+  saveHint,
+  saveReconstruction,
+  vaultAttempt,
+} from "../lib/store";
+import { FIRST_RUN_DISMISSED_KEY } from "../lib/firstRun";
 import { alignSentences } from "../lib/align";
 
 // downloadIcs is stubbed so the "Add to calendar" action can be asserted without
@@ -44,11 +51,12 @@ function renderHome() {
 }
 
 describe("Home dashboard", () => {
-  it("shows the designed empty state before any attempt", async () => {
+  it("shows the first-run guide on a fresh store", async () => {
     renderHome();
     expect(
-      await screen.findByRole("heading", { name: /train against the masters/i }),
+      await screen.findByRole("heading", { name: /finish your first loop today/i }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /start the quick drill/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /browse passages/i })).toHaveAttribute(
       "href",
       "/library",
@@ -57,6 +65,37 @@ describe("Home dashboard", () => {
       "href",
       "/example",
     );
+  });
+
+  it("falls back to the designed empty state once the guide is skipped", async () => {
+    await putSetting(FIRST_RUN_DISMISSED_KEY, true);
+    renderHome();
+    expect(
+      await screen.findByRole("heading", { name: /train against the masters/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /finish your first loop today/i }),
+    ).toBeNull();
+  });
+
+  it("shows the pipeline nudge on a populated first-run store", async () => {
+    await createAttempt(passage(), Date.now());
+    renderHome();
+    expect(await screen.findByText(/so one is always ripe when you come back/i)).toBeInTheDocument();
+  });
+
+  it("hides the guide and the nudge once an attempt is reconstructed", async () => {
+    const created = await createAttempt(passage(), Date.now());
+    await vaultAttempt(created.id, "micro", 0);
+    const alignment = alignSentences(passage().sentences, ["My rebuild of it."]);
+    await saveReconstruction(created.id, "My rebuild of it.", alignment, Date.now());
+
+    renderHome();
+    await screen.findByRole("article");
+    expect(
+      screen.queryByRole("heading", { name: /finish your first loop today/i }),
+    ).toBeNull();
+    expect(screen.queryByText(/so one is always ripe when you come back/i)).toBeNull();
   });
 
   it("shows a condensing attempt with progress and a resume action", async () => {
