@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -7,6 +7,11 @@ import { Condense } from "./Condense";
 import { resetDbConnection, type PassageSnapshot } from "../lib/db";
 import { createAttempt, getAttempt, putSetting, saveHint, vaultAttempt } from "../lib/store";
 import { FIRST_RUN_MICRO_DRILL_KEY } from "../lib/firstRun";
+
+vi.mock("../lib/store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/store")>();
+  return { ...actual, vaultAttempt: vi.fn(actual.vaultAttempt) };
+});
 
 beforeEach(() => {
   resetDbConnection();
@@ -115,6 +120,22 @@ describe("Condense", () => {
 
   it("shows an in-voice error for a missing attempt", async () => {
     renderCondense("does-not-exist");
-    expect(await screen.findByText(/that attempt is not here/i)).toBeInTheDocument();
+    expect(await screen.findByText(/start a fresh attempt/i)).toBeInTheDocument();
+  });
+
+  it("shows a next step when the vault save fails, and re-enables the action", async () => {
+    const user = userEvent.setup();
+    const created = await createAttempt(passage(), 1000);
+    renderCondense(created.id);
+
+    await screen.findByText("Alpha one.");
+    await user.click(screen.getByRole("button", { name: /next/i }));
+    await user.click(screen.getByRole("button", { name: /finish and vault/i }));
+
+    vi.mocked(vaultAttempt).mockRejectedValueOnce(new Error("blocked"));
+    await user.click(await screen.findByRole("button", { name: /vault it/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/allow storage, then try again/i);
+    expect(screen.getByRole("button", { name: /vault it/i })).toBeEnabled();
   });
 });

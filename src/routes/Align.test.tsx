@@ -62,6 +62,20 @@ describe("Align", () => {
     );
   });
 
+  it("holds a loading skeleton before the alignment appears, never a blank screen", async () => {
+    const created = await createAttempt(passage, 1000);
+    await vaultAttempt(created.id, "micro", 0);
+    const rebuildText = "I went to the forest to live deliberately.";
+    const alignment = alignSentences(passage.sentences, segmentSentences(rebuildText));
+    await saveReconstruction(created.id, rebuildText, alignment, 5000);
+
+    renderAlign(created.id);
+    // The layout holds with an announced status skeleton while the record loads.
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    // Then the real alignment resolves in its place.
+    expect(await screen.findByRole("heading", { name: "Walden" })).toBeInTheDocument();
+  });
+
   it("redirects an attempt without an alignment to the reconstruct screen", async () => {
     const created = await createAttempt(passage, 1000);
     await vaultAttempt(created.id, "micro", 0);
@@ -71,6 +85,6 @@ describe("Align", () => {
 
   it("shows an in-voice error for a missing attempt", async () => {
     renderAlign("missing");
-    expect(await screen.findByText(/that attempt is not here/i)).toBeInTheDocument();
+    expect(await screen.findByText(/start a fresh attempt/i)).toBeInTheDocument();
   });
 });

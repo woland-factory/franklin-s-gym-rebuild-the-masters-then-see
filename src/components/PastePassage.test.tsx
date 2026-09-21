@@ -63,4 +63,16 @@ describe("PastePassage", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/keep it to 40 sentences\. yours has 46\./i);
     expect(onStart).not.toHaveBeenCalled();
   });
+
+  it("shows a next step when the start itself fails, and re-enables the button", async () => {
+    const onStart = vi.fn().mockRejectedValue(new Error("blocked"));
+    render(<PastePassage onStart={onStart} />);
+
+    await userEvent.click(screen.getByLabelText(/passage/i));
+    await userEvent.paste("First clear thought. Then a second one.");
+    await userEvent.click(screen.getByRole("button", { name: /start with this/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/allow storage, then try again/i);
+    expect(screen.getByRole("button", { name: /start with this/i })).toBeEnabled();
+  });
 });

@@ -147,6 +147,22 @@ describe("Reconstruct", () => {
 
   it("shows an in-voice error for a missing attempt", async () => {
     renderReconstruct("missing");
-    expect(await screen.findByText(/that attempt is not here/i)).toBeInTheDocument();
+    expect(await screen.findByText(/start a fresh attempt/i)).toBeInTheDocument();
+  });
+
+  it("shows a busy label the moment submit is pressed, then completes the transition", async () => {
+    const created = await ripeAttempt();
+    renderReconstruct(created.id);
+
+    const textarea = await screen.findByLabelText(/your rebuild/i);
+    fireEvent.change(textarea, { target: { value: "VAULT SECRET ONE. Something new." } });
+    fireEvent.click(screen.getByRole("button", { name: /see alignment/i }));
+
+    // Feedback within 100ms: the control flips to a busy label right away,
+    // before the align compute and save run.
+    expect(screen.getByRole("button", { name: /aligning/i })).toBeInTheDocument();
+
+    // The transition still completes onto the alignment.
+    expect(await screen.findByText("Align screen")).toBeInTheDocument();
   });
 });

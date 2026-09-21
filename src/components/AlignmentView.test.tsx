@@ -113,4 +113,22 @@ describe("AlignmentView", () => {
       /\b(better|worse|wrong|right|missed|failed|lost|score|grade)\b/i,
     );
   });
+
+  it("distinguishes each side with a non-color hook on the marks", () => {
+    renderView();
+    // A word marked on the original side and one on yours carry a stable,
+    // non-color side hook, so the two are told apart without relying on hue.
+    expect(screen.getByText("brown").closest("mark")).toHaveAttribute("data-side", "original");
+    expect(screen.getByText("red").closest("mark")).toHaveAttribute("data-side", "yours");
+    // The single-side blocks carry the same per-side hook.
+    expect(screen.getByText("A sentence you left out.")).toHaveAttribute("data-side", "original");
+    expect(screen.getByText("A sentence of your own.")).toHaveAttribute("data-side", "yours");
+  });
+
+  it("exposes the same per-side hook on the legend keys", () => {
+    const { container } = renderView();
+    const sides = Array.from(container.querySelectorAll("[aria-label='What the marks mean'] [data-side]"))
+      .map((el) => el.getAttribute("data-side"));
+    expect(sides).toEqual(["original", "yours"]);
+  });
 });

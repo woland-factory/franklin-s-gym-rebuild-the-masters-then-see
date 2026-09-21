@@ -11,10 +11,15 @@ import {
   MICRO_DRILL_PASSAGE_ID,
   WARMUP_PASSAGE_ID,
 } from "../lib/firstRun";
-import { getSetting, listAttempts, putSetting } from "../lib/store";
+import { createAttempt, getSetting, listAttempts, putSetting } from "../lib/store";
 import { DELAY_PRESETS } from "../lib/delays";
 import { seedPassages } from "../data/seedPassages";
 import { alignSentences } from "../lib/align";
+
+vi.mock("../lib/store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/store")>();
+  return { ...actual, createAttempt: vi.fn(actual.createAttempt) };
+});
 
 const NOW = 1_000_000_000;
 
@@ -84,6 +89,16 @@ describe("FirstRunGuide", () => {
     expect(all).toHaveLength(1);
     expect(all[0].passage.originalPassageId).toBe(MICRO_DRILL_PASSAGE_ID);
     expect(await getSetting<string>(FIRST_RUN_MICRO_DRILL_KEY)).toBe(all[0].id);
+  });
+
+  it("shows a next step when starting the drill fails, and re-enables the action", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createAttempt).mockRejectedValueOnce(new Error("blocked"));
+    renderGuide([]);
+    await user.click(await screen.findByRole("button", { name: /start the quick drill/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/allow storage, then try again/i);
+    expect(screen.getByRole("button", { name: /start the quick drill/i })).toBeEnabled();
   });
 
   it("renders the warm-up passage and a countdown while a micro attempt waits, never the vault", async () => {

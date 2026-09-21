@@ -36,6 +36,22 @@ test.describe("first render at 390px", () => {
     await expect(page.getByText("Only in the original", { exact: true })).toBeVisible();
     await expect(page.getByText("Only in yours", { exact: true })).toBeVisible();
 
+    // Each side carries a non-color hook, so the confrontation reads without
+    // color for every user.
+    await expect(page.locator('mark[data-side="original"]').first()).toBeVisible();
+    await expect(page.locator('mark[data-side="yours"]').first()).toBeVisible();
+    await expect(page.locator('[aria-label="What the marks mean"] [data-side]')).toHaveCount(2);
+
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    );
+    expect(overflow).toBe(true);
+  });
+
+  test("an unknown route shows the 404 with no horizontal scroll", async ({ page }) => {
+    await page.goto("/no-such-page");
+    await expect(page.getByRole("heading", { name: /that page moved/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /go to the library/i })).toBeVisible();
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
     );

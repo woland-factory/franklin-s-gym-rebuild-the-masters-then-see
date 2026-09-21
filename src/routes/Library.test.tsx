@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -6,7 +6,12 @@ import { IDBFactory } from "fake-indexeddb";
 import { Library } from "./Library";
 import { seedPassages } from "../data/seedPassages";
 import { resetDbConnection } from "../lib/db";
-import { listAttempts } from "../lib/store";
+import { createAttempt, listAttempts } from "../lib/store";
+
+vi.mock("../lib/store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/store")>();
+  return { ...actual, createAttempt: vi.fn(actual.createAttempt) };
+});
 
 beforeEach(() => {
   resetDbConnection();
@@ -57,5 +62,17 @@ describe("Library", () => {
     renderLibrary();
     expect(screen.getByRole("heading", { name: /paste your own/i })).toBeInTheDocument();
     expect(screen.getByText(/up to 400 words, 40 sentences/i)).toBeInTheDocument();
+  });
+
+  it("shows a next step when a start fails and keeps the card usable", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createAttempt).mockRejectedValueOnce(new Error("blocked"));
+    renderLibrary();
+    const firstCard = screen.getAllByRole("article")[0];
+    await user.click(within(firstCard).getByRole("button", { name: /^start$/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/allow storage, then try again/i);
+    // The action re-enables so the user can retry.
+    expect(within(firstCard).getByRole("button", { name: /^start$/i })).toBeEnabled();
   });
 });
