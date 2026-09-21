@@ -25,6 +25,7 @@ export function Condense() {
   const [choosing, setChoosing] = useState(false);
   const [delay, setDelay] = useState<DelayType>(DEFAULT_DELAY);
   const [vaulting, setVaulting] = useState(false);
+  const [vaultError, setVaultError] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -87,7 +88,7 @@ export function Condense() {
   if (status === "not-found" || status === "error" || !attempt) {
     return (
       <ErrorState
-        title="That attempt is not here"
+        title="Start a fresh attempt"
         message="It may have been removed. Start a fresh one from your attempts."
         actionLabel="Back to your attempts"
         onAction={() => navigate("/")}
@@ -130,10 +131,12 @@ export function Condense() {
   async function confirmVault() {
     if (!attempt || vaulting) return;
     setVaulting(true);
+    setVaultError(null);
     try {
       await vaultAttempt(attempt.id, delay, Date.now());
       navigate("/");
     } catch {
+      setVaultError("This device blocked the save. Allow storage, then try again.");
       setVaulting(false);
     }
   }
@@ -168,6 +171,11 @@ export function Condense() {
             {vaulting ? "Vaulting" : "Vault it"}
           </button>
         </div>
+        {vaultError && (
+          <p className={styles.vaultError} role="alert">
+            {vaultError}
+          </p>
+        )}
       </section>
     );
   }

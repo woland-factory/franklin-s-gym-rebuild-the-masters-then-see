@@ -16,9 +16,17 @@ function lengthLine(delta: number): string {
   return delta > 0 ? `${n} ${word} longer` : `${n} ${word} shorter`;
 }
 
+type Side = "original" | "yours";
+
+const SIDE_CLASS: Record<Side, string> = {
+  original: styles.markOriginal,
+  yours: styles.markYours,
+};
+
 // Every span renders as an escaped text node. Words that differ are wrapped in
-// a <mark> carrying the side's hue; shared words render plain.
-function Spans({ spans, markClass }: { spans: DiffSpan[]; markClass: string }) {
+// a <mark> carrying the side's hue plus a per-side underline pattern, so the
+// difference reads without color. `data-side` is the stable, non-color hook.
+function Spans({ spans, side }: { spans: DiffSpan[]; side: Side }) {
   return (
     <>
       {spans.map((span, i) => (
@@ -27,7 +35,9 @@ function Spans({ spans, markClass }: { spans: DiffSpan[]; markClass: string }) {
           {span.kind === "same" ? (
             span.text
           ) : (
-            <mark className={`${styles.mark} ${markClass}`}>{span.text}</mark>
+            <mark className={`${styles.mark} ${SIDE_CLASS[side]}`} data-side={side}>
+              {span.text}
+            </mark>
           )}
         </Fragment>
       ))}
@@ -42,7 +52,7 @@ function MatchedPair({ pair }: { pair: AlignmentPair }) {
         <span className={styles.sideLabel}>Original</span>
         <p className={styles.sentence}>
           {pair.originalSpans ? (
-            <Spans spans={pair.originalSpans} markClass={styles.markOriginal} />
+            <Spans spans={pair.originalSpans} side="original" />
           ) : (
             pair.original
           )}
@@ -52,7 +62,7 @@ function MatchedPair({ pair }: { pair: AlignmentPair }) {
         <span className={styles.sideLabel}>Yours</span>
         <p className={styles.sentence}>
           {pair.yourSpans ? (
-            <Spans spans={pair.yourSpans} markClass={styles.markYours} />
+            <Spans spans={pair.yourSpans} side="yours" />
           ) : (
             pair.your
           )}
@@ -77,11 +87,19 @@ export function AlignmentView({ title, author, alignment }: AlignmentViewProps) 
 
       <ul className={styles.legend} aria-label="What the marks mean">
         <li className={styles.legendItem}>
-          <span className={`${styles.swatch} ${styles.markOriginal}`} aria-hidden="true" />
+          <span
+            className={`${styles.swatch} ${styles.markOriginal}`}
+            data-side="original"
+            aria-hidden="true"
+          />
           In the original
         </li>
         <li className={styles.legendItem}>
-          <span className={`${styles.swatch} ${styles.markYours}`} aria-hidden="true" />
+          <span
+            className={`${styles.swatch} ${styles.markYours}`}
+            data-side="yours"
+            aria-hidden="true"
+          />
           In yours
         </li>
       </ul>
@@ -94,7 +112,7 @@ export function AlignmentView({ title, author, alignment }: AlignmentViewProps) 
               <div className={styles.single}>
                 <span className={styles.sideLabel}>Only in the original</span>
                 <p className={styles.sentence}>
-                  <mark className={`${styles.mark} ${styles.markOriginal}`}>
+                  <mark className={`${styles.mark} ${styles.markOriginal}`} data-side="original">
                     {pair.original}
                   </mark>
                 </p>
@@ -104,7 +122,9 @@ export function AlignmentView({ title, author, alignment }: AlignmentViewProps) 
               <div className={styles.single}>
                 <span className={styles.sideLabel}>Only in yours</span>
                 <p className={styles.sentence}>
-                  <mark className={`${styles.mark} ${styles.markYours}`}>{pair.your}</mark>
+                  <mark className={`${styles.mark} ${styles.markYours}`} data-side="yours">
+                    {pair.your}
+                  </mark>
                 </p>
               </div>
             )}

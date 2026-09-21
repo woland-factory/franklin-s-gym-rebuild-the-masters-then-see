@@ -4,6 +4,30 @@
   flex-direction: column;
 }
 
+/* Clipped until focused, then a real visible control a keyboard user can use.
+   It sits above the sticky header so it is never covered. */
+.skipLink {
+  position: absolute;
+  left: var(--space-2);
+  top: var(--space-2);
+  z-index: 20;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  text-decoration: none;
+  font-weight: 600;
+  transform: translateY(-150%);
+  opacity: 0;
+}
+
+.skipLink:focus-visible,
+.skipLink:focus {
+  transform: translateY(0);
+  opacity: 1;
+}
+
 .header {
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface);
@@ -43,6 +67,13 @@
 
 .navLink:hover {
   color: var(--color-text);
+}
+
+/* The current section, conveyed to sight and assistive tech. Subtle, so the
+   nav stays subordinate to each page's primary action. */
+.navLinkActive {
+  color: var(--color-text);
+  background: var(--color-surface-2);
 }
 
 .main {

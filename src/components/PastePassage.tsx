@@ -6,10 +6,13 @@ import styles from "./PastePassage.module.css";
 
 interface PastePassageProps {
   // Called with a frozen snapshot once the pasted text passes validation. The
-  // parent creates the attempt and navigates.
-  onStart: (passage: PassageSnapshot) => void;
+  // parent creates the attempt and navigates. It may reject on a storage
+  // failure, which surfaces here as an inline next step.
+  onStart: (passage: PassageSnapshot) => void | Promise<void>;
   starting?: boolean;
 }
+
+const START_BLOCKED = "This device blocked the save. Allow storage, then try again.";
 
 function errorFor(
   result: Extract<ReturnType<typeof segmentAndValidate>, { ok: false }>,
@@ -30,8 +33,10 @@ export function PastePassage({ onStart, starting = false }: PastePassageProps) {
   const [text, setText] = useState("");
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const busy = starting || submitting;
 
-  function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     const result = segmentAndValidate(text);
     if (!result.ok) {
@@ -48,7 +53,13 @@ export function PastePassage({ onStart, starting = false }: PastePassageProps) {
       sentences: result.sentences,
       isCustom: true,
     };
-    onStart(snapshot);
+    setSubmitting(true);
+    try {
+      await onStart(snapshot);
+    } catch {
+      setSubmitting(false);
+      setError(START_BLOCKED);
+    }
   }
 
   return (
@@ -87,8 +98,8 @@ export function PastePassage({ onStart, starting = false }: PastePassageProps) {
             {error}
           </p>
         )}
-        <button type="submit" className="btn btn-primary" disabled={starting}>
-          {starting ? "Starting" : "Start with this"}
+        <button type="submit" className="btn btn-primary" disabled={busy}>
+          {busy ? "Starting" : "Start with this"}
         </button>
       </form>
     </section>

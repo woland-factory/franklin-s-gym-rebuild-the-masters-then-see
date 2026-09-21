@@ -127,6 +127,12 @@
   width: 100%;
 }
 
+.startError {
+  color: var(--color-accent);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
 .secondary {
   display: flex;
   flex-wrap: wrap;

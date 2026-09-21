@@ -35,10 +35,21 @@
 }
 
 .swatch {
-  width: 1rem;
+  width: 1.5rem;
   height: 1rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
+}
+
+/* The legend swatch carries the same per-side pattern as the marks: a solid
+   bottom edge for the original, a dotted one for yours. The key stays legible
+   without color. */
+.swatch.markOriginal {
+  border-bottom: 3px solid var(--color-text);
+}
+
+.swatch.markYours {
+  border-bottom: 3px dotted var(--color-text);
 }
 
 .pairs {
@@ -105,12 +116,19 @@
   border-radius: var(--radius-sm);
   padding: 0 2px;
   box-decoration-break: clone;
+  /* A per-side underline rides the text so a difference reads without color.
+     It means "this differs", never "this is wrong". */
+  text-decoration-line: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
 }
 
 .markOriginal {
   background: var(--color-mark-original);
+  text-decoration-style: solid;
 }
 
 .markYours {
   background: var(--color-mark-yours);
+  text-decoration-style: dotted;
 }

@@ -35,8 +35,12 @@
   max-width: 320px;
 }
 
-/* The secondary action is visibly subordinate to the primary. */
-.secondary :global(button) {
+/* The secondary action is visibly subordinate to the primary, whether it
+   renders as a button or a link. */
+.secondary :global(button),
+.secondary :global(a) {
+  display: inline-flex;
+  align-items: center;
   background: none;
   border: none;
   color: var(--color-text-muted);
@@ -48,7 +52,8 @@
   text-underline-offset: 3px;
 }
 
-.secondary :global(button:hover) {
+.secondary :global(button:hover),
+.secondary :global(a:hover) {
   color: var(--color-text);
 }
 

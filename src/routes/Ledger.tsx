@@ -155,7 +155,7 @@ export function Ledger() {
   if (status === "error") {
     return (
       <ErrorState
-        title="Your ledger did not load"
+        title="Reload your ledger"
         message="This device blocked local storage. Allow it, then try again."
         actionLabel="Try again"
         onAction={load}

@@ -107,6 +107,14 @@
   cursor: pointer;
 }
 
+/* The real file input is visually hidden, so mirror its keyboard focus onto the
+   styled label. A keyboard user tabbing here sees the same focus ring as any
+   other control. */
+.importLabel:focus-within {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
 .importMessage {
   margin-top: var(--space-3);
   font-size: var(--text-sm);

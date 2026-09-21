@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import styles from "./AppLayout.module.css";
 
 interface AppLayoutProps {
@@ -11,7 +11,7 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   return (
     <div className={styles.shell}>
-      <a href="#main" className="visually-hidden">
+      <a href="#main" className={styles.skipLink}>
         Skip to content
       </a>
       <header className={styles.header}>
@@ -20,12 +20,22 @@ export function AppLayout({ children }: AppLayoutProps) {
             Franklin's Gym
           </Link>
           <nav aria-label="Primary">
-            <Link to="/library" className={styles.navLink}>
+            <NavLink
+              to="/library"
+              className={({ isActive }) =>
+                isActive ? `${styles.navLink} ${styles.navLinkActive}` : styles.navLink
+              }
+            >
               Library
-            </Link>
-            <Link to="/ledger" className={styles.navLink}>
+            </NavLink>
+            <NavLink
+              to="/ledger"
+              className={({ isActive }) =>
+                isActive ? `${styles.navLink} ${styles.navLinkActive}` : styles.navLink
+              }
+            >
               Ledger
-            </Link>
+            </NavLink>
           </nav>
         </div>
       </header>

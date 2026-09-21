@@ -45,6 +45,8 @@ interface Settings {
   microDrillId: string | undefined;
 }
 
+const START_BLOCKED = "This device blocked the save. Allow storage, then try again.";
+
 // The first-run guide: a compact "first workout" checklist that walks a new user
 // from the first note to the first alignment. It reads its own settings and
 // derives its view with firstRunView, so all gate logic stays pure and tested.
@@ -52,6 +54,7 @@ export function FirstRunGuide({ attempts, now, onChanged }: FirstRunGuideProps) 
   const navigate = useNavigate();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
 
   const loadSettings = useCallback(() => {
     let live = true;
@@ -86,11 +89,13 @@ export function FirstRunGuide({ attempts, now, onChanged }: FirstRunGuideProps) 
   async function startDrill() {
     if (starting) return;
     setStarting(true);
+    setStartError(null);
     try {
       const attempt = await createAttempt(snapshotFromSeed(MICRO_DRILL_PASSAGE_ID), Date.now());
       await putSetting(FIRST_RUN_MICRO_DRILL_KEY, attempt.id);
       navigate(`/condense/${attempt.id}`);
     } catch {
+      setStartError(START_BLOCKED);
       setStarting(false);
     }
   }
@@ -175,6 +180,12 @@ export function FirstRunGuide({ attempts, now, onChanged }: FirstRunGuideProps) 
             <Link to="/library">Browse passages</Link>
             <Link to="/example">See an example</Link>
           </div>
+        )}
+
+        {startError && (
+          <p className={styles.startError} role="alert">
+            {startError}
+          </p>
         )}
       </div>
 

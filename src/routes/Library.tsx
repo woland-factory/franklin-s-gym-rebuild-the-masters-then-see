@@ -31,9 +31,12 @@ function snapshotFromSeed(passage: SeedPassage): PassageSnapshot {
 
 // Browse the seed library or paste your own, then start an attempt. Starting
 // creates a local attempt and opens the condense screen.
+const START_BLOCKED = "This device blocked the save. Allow storage, then try again.";
+
 export function Library() {
   const [filter, setFilter] = useState<Filter>("all");
   const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const visible = useMemo(
@@ -41,13 +44,21 @@ export function Library() {
     [filter],
   );
 
+  // Creates the attempt and opens condense. Rejects on a storage failure so the
+  // caller can surface a next step.
   async function start(passage: PassageSnapshot) {
+    const attempt = await createAttempt(passage, Date.now());
+    navigate(`/condense/${attempt.id}`);
+  }
+
+  async function startFromCard(passage: PassageSnapshot) {
     if (starting) return;
     setStarting(true);
+    setStartError(null);
     try {
-      const attempt = await createAttempt(passage, Date.now());
-      navigate(`/condense/${attempt.id}`);
+      await start(passage);
     } catch {
+      setStartError(START_BLOCKED);
       setStarting(false);
     }
   }
@@ -75,13 +86,19 @@ export function Library() {
         ))}
       </div>
 
+      {startError && (
+        <p className={styles.startError} role="alert">
+          {startError}
+        </p>
+      )}
+
       <ul className={styles.grid}>
         {visible.map((passage) => (
           <li key={passage.id}>
             <PassageCard
               passage={passage}
               starting={starting}
-              onStart={() => start(snapshotFromSeed(passage))}
+              onStart={() => startFromCard(snapshotFromSeed(passage))}
             />
           </li>
         ))}

@@ -13,8 +13,9 @@ services:
       UMAMI_URL: "${UMAMI_URL:-}"
       UMAMI_WEBSITE_ID: "${UMAMI_WEBSITE_ID:-}"
       SENTRY_DSN: "${SENTRY_DSN:-}"
-      # Demo seed flag. This release implements no demo behavior; it must only
-      # start cleanly whether the flag is set or not.
+      # Demo seed flag. Set to 1 so a fresh device opens on a ready-made demo
+      # attempt whose alignment is one tap away. Production composes leave it
+      # unset.
       SEED_DEMO: "${SEED_DEMO:-1}"
     networks:
       - default

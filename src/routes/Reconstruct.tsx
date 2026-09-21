@@ -61,7 +61,7 @@ export function Reconstruct() {
   if (status === "not-found" || status === "error" || !attempt) {
     return (
       <ErrorState
-        title="That attempt is not here"
+        title="Start a fresh attempt"
         message="It may have been removed. Start a fresh one from your attempts."
         actionLabel="Back to your attempts"
         onAction={() => navigate("/")}
@@ -111,6 +111,10 @@ export function Reconstruct() {
     }
     setInlineMessage(null);
     setSaving(true);
+    // Yield once so the "Aligning" label paints before the synchronous align
+    // compute runs. The grid is tiny, so this keeps feedback within 100ms
+    // without adding an artificial delay.
+    await new Promise((resolve) => setTimeout(resolve, 0));
     try {
       const alignment = alignSentences(attempt.passage.sentences, sentences);
       await saveReconstruction(attempt.id, text, alignment, Date.now());

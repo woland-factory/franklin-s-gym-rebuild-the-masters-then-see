@@ -50,7 +50,7 @@ export function Align() {
   if (status === "not-found" || status === "error" || !attempt) {
     return (
       <ErrorState
-        title="That attempt is not here"
+        title="Start a fresh attempt"
         message="It may have been removed. Start a fresh one from your attempts."
         actionLabel="Back to your attempts"
         onAction={() => navigate("/")}
