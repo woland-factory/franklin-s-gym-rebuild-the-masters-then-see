@@ -1,644 +1,493 @@
-# EPIC SPEC — First-run walkthrough & micro-drill
+# EPIC SPEC — Polish: honest confrontation, everywhere, on every device
 
 Franklin's Gym: rebuild the masters, then see your gaps in color.
 
-This EPIC solves the day-one cliff. A brand-new user today lands on a designed
-empty state, picks a passage, condenses it, and then hits a wall: the standard
-delay is three days, so the first session ends in homework, not in the
-alignment that is the whole point. This EPIC leads that user through the loop
-once, the same day, and ends the first session in a real, honest alignment.
+This is a UX, performance, accessibility, and copy pass over the whole delivered
+product. It ships **no new features and no new mechanics**. The loop is already
+built and works end to end: browse or paste a passage, condense it sentence by
+sentence into hints, vault it behind a real delay, rebuild it from the hints
+alone, and see a deterministic sentence-by-sentence alignment against the fixed
+original. This EPIC tightens what exists so the product clears the QUALITY BAR
+on every screen and so its one differentiator lands cleanly for every user,
+including color-blind and keyboard-only ones.
 
-It adds three first-run surfaces and nothing else:
-1. A short guided path (a "first workout" checklist) that walks a new user from
-   the first note to the first alignment, skippable at any step, gone forever
-   after the first success.
-2. A micro-drill: a short passage vaulted behind a minutes-long delay filled by
-   a warm-up passage to read, so the interval is real yet the session finishes
-   the same day.
-3. The `SEED_DEMO` staging demo: with the flag set, the app opens on demo state
-   that reaches the alignment view within a minute with no typing.
-
-The foundation already exists (EPICs 1 to 4): a Vite + React 18 + TypeScript
-app; `react-router-dom` v7 routing in `src/App.tsx`; the IndexedDB layer
-(`src/lib/db.ts`, `src/lib/store.ts`) with an `attempts` object store and a
-`settings` object store; the full loop condense (`/condense/:id`) → vault →
-reconstruct (`/reconstruct/:id`) → align (`/align/:id`); the ledger
-(`/ledger`); the deterministic alignment engine (`src/lib/align.ts`); runtime
-config (`src/lib/config.ts`) injected by `docker-entrypoint.sh`; and a worked
-example at `/example`. This EPIC adds guidance and a demo seed on top. It
-changes nothing about how condensing, vaulting, reconstructing, or aligning
-work.
+The single most important change is in the alignment view. Today the marks that
+show what you kept and what you dropped are carried by **background color
+alone**. The product's whole claim is "see your gaps in color", and for a
+color-blind user that claim currently fails. Fixing it is the heart of this
+polish pass.
 
 ---
 
 ## Quality differentiator (this app must win here)
 
 **Incorruptible, instant confrontation.** The product wins on the honesty and
-precision of a deterministic sentence-by-sentence diff against a fixed
-original, computed in seconds. Paper cannot collate without tedium. A chatbot
-flatters and lets the original leak from scrollback.
+precision of a deterministic sentence-by-sentence diff against a fixed original,
+computed in seconds. Paper cannot collate without tedium. A chatbot flatters and
+lets the original leak from scrollback. We win on the honesty and precision of
+the feedback.
 
-**What it demands of THIS EPIC:** onboarding must deliver the honest
-confrontation on day one without cheapening it.
+**What it demands of THIS EPIC:** the confrontation must be honest, precise, and
+legible to everyone, in the first minute, on a phone.
 
-- **The wait stays real.** The micro-drill's delay is genuinely minutes long,
-  not zero. Forgetting is the exercise. The warm-up passage fills the wait so
-  the user stays engaged, but it never shortens or fakes the delay, and it
-  never lets the user peek at the vaulted original.
-- **The demo shows the truth, not a trophy.** The `SEED_DEMO` attempt reaches a
-  real alignment with genuine gaps (an omission and an addition, marked in
-  color), computed by the same engine as any attempt. A demo that shows a
-  flawless rebuild demonstrates nothing and is a defect.
-- **Guidance points, never lectures.** Every guide string is one short
-  imperative anchored to a real control. The screen is still the product.
+- **Legible to everyone.** The marks must read as differences for a color-blind
+  user, not just a full-color one. Right now the word-level marks in a matched
+  pair and the two legend swatches distinguish "in the original" from "in yours"
+  by hue only. That is a direct miss against the planner's accessibility
+  criterion and against the product's own name. The alignment marks must be
+  conveyed by more than color: a shape, pattern, underline, or text cue that
+  survives without color perception.
+- **Honest, never a verdict.** The confrontation shows *differences*, not
+  *worseness*. Keep the neutral two-hue palette (no red/green, no
+  good/bad coding), the neutral per-pair length line, and the "differences
+  only" guarantee the existing `AlignmentView` test already pins. Any non-color
+  cue added here must stay neutral: a pattern that reads as "this differs", never
+  a cross, an X, a warning icon, or anything that reads as "wrong".
+- **Instant and steady.** The alignment computation must show in-place progress
+  and never flash a white screen on the way to the result. It already computes
+  in well under a second on a 40×40 grid; this pass proves the transition holds
+  the layout and gives feedback within 100ms.
 
 ---
 
 ## Scope
 
-### In scope
-- **First-run guide** on the home dashboard (`src/components/FirstRunGuide.tsx`):
-  a compact "first workout" checklist of three steps, each one short imperative
-  sentence, whose ticks fill from the real state of the guided attempt. Its
-  active-step action is always the real next control. A "Skip the guide"
-  control is present in every state.
-- **Micro-drill** started by the guide: creates an attempt on a fixed short
-  seed passage, steers the vault to the `micro` delay (minutes), and fills the
-  wait with a read-only **warm-up passage** (a different short seed) plus the
-  live ripeness countdown. When ripe, the guide's action becomes "Rebuild now".
-- **Pipeline nudge** on the populated first-run dashboard: one short hint line
-  encouraging the user to condense a few passages so one is ripe on return.
-- **`SEED_DEMO` demo state**: when the flag is set and the store is empty,
-  bootstrap seeds one reconstructed demo attempt (a real passage, a canned
-  imperfect rebuild, a real cached alignment) so the app opens on demo state
-  and the alignment view is one tap away.
-- **First-run gate**: all three surfaces are hidden the moment the user has any
-  completed (reconstructed) attempt, and hidden after the user skips.
-- Supporting pieces: `src/lib/firstRun.ts` (pure gate + view derivation +
-  constants), `src/lib/demo.ts` (pure demo-attempt builder), `seedDemoAttempt`
-  in `src/lib/store.ts`, a `seedDemo` field in `src/lib/config.ts`, the
-  `SEED_DEMO` line in `docker-entrypoint.sh`, the micro-delay default for the
-  guided attempt in `src/routes/Condense.tsx`, and the demo seed step in
-  `src/components/Bootstrap.tsx`.
+### In scope (refine only; touch nothing else)
 
-### Out of scope (do not build here)
-- **No new core mechanics** (planner non-goal). Condensing, vaulting,
-  reconstructing, and the alignment engine are untouched. The warm-up passage
-  is read-only display of an existing seed. It is not a new exercise, has no
-  input, and writes nothing.
-- **No additional Franklin drills** (planner non-goal). One loop only:
-  condense → vault → reconstruct → align. The warm-up is reading material, not
-  a jumble/verse/improve drill.
-- **No settings screen, no configurable delays.** The two existing delay
-  presets in `src/lib/delays.ts` stay exactly as they are. The guide selects
-  `micro` as the default for its attempt; it adds no new preset.
-- **No analytics requirement.** Emitting a first-run event is allowed if it
-  matches existing `initAnalytics` usage and carries no passage text, but it is
-  not an acceptance criterion. Do not build a funnel.
-- **No changes to the ledger, library, reconstruct, or align screens** beyond
-  what is listed above (only Condense gains a micro default; only Home and
-  Bootstrap gain first-run wiring).
-- **No data-model changes.** No `DB_VERSION` bump, no new object store, no new
-  `AttemptRecord` field. First-run state lives in the existing `settings`
-  store; the demo attempt is an ordinary `AttemptRecord`.
+1. **Non-color alignment marks** in `src/components/AlignmentView.tsx` and its
+   CSS: every mark (word-level marks inside matched pairs, and the single-side
+   omission/addition blocks) carries a non-color cue in addition to its hue, and
+   the legend shows that same cue beside each label. The two sides stay visually
+   distinct without color. Neutral throughout.
+2. **Designed error paths on the "start / save" actions** that currently fail
+   silently: `Library` start, `PastePassage` start, `FirstRunGuide` start,
+   and `Condense` vault. A failed tap must say, in the product's voice, what to
+   do next, instead of resetting a spinner and looking dead.
+3. **Keyboard-visible skip link** in `AppLayout`: the "Skip to content" link
+   becomes visible when focused, so a keyboard user can see and use it.
+4. **A 390px mobile and accessibility sweep** across every route
+   (`/`, `/library`, `/ledger`, `/condense/:id`, `/reconstruct/:id`,
+   `/align/:id`, `/example`, 404): no horizontal scroll, ~44px touch targets,
+   labeled controls, semantic headings and landmarks, full keyboard reach,
+   sufficient contrast, visible focus. Fix any concrete miss found; change
+   nothing that already passes.
+5. **A copy sweep** over every user-visible string (the mechanical sweep test
+   already guards dashes, banned vocabulary, and negative phrasing; keep it
+   green and fix anything it or a manual read surfaces).
+6. **A README verification** pass: the run commands must match the actual
+   `Dockerfile`, `docker-entrypoint.sh`, and compose files, and the copy must
+   carry no factory internals. Correct any drift.
+7. **A perceived-speed verification** of the reconstruct → align transition: the
+   submit button shows progress within 100ms and the align route holds its
+   layout with a skeleton, with no white flash.
 
-### Two scope decisions, settled here so nobody re-litigates them
+### Out of scope (binding)
 
-1. **`SEED_DEMO` and the walkthrough are mutually exclusive by design, and that
-   is correct.** The seeded demo attempt is a completed (reconstructed)
-   attempt, so it trips the first-run gate and the walkthrough does not show on
-   a demo-seeded store. This is intended: `SEED_DEMO` exists to show a stranger
-   the differentiator (the alignment) in the first minute, not the onboarding.
-   The walkthrough is proven on a clean, unseeded store (the default in dev,
-   test, and the e2e build). Both criteria are independently provable. Do not
-   try to show both at once.
-2. **The guide tracks one attempt, chosen robustly.** The guided micro-drill
-   attempt's id is persisted in `settings`. If that id is missing but an
-   in-progress attempt exists (for example the user started from the library
-   instead of the guide), the guide tracks the most recent non-reconstructed
-   attempt so it still walks the user to first success. The same-day guarantee
-   and the warm-up attach specifically to the guided micro-drill attempt (the
-   one vaulted with the `micro` delay).
+- **No new features. No new mechanics. No new drills.** (Planner non-goals.)
+  Condense, vault, reconstruct, and the alignment engine (`src/lib/align.ts`)
+  keep their exact behavior and output. This pass changes presentation,
+  resilience, and copy, never what the loop computes or stores.
+- **No data-model change.** `DB_VERSION` stays 1. No new object store, no new
+  `AttemptRecord` field, no migration.
+- **No new dependencies.** Plain React, existing tokens, existing components.
+- **No re-theming or redesign.** Keep the current type scale, spacing, radii,
+  and the two neutral mark hues. This is a correction pass, not a restyle. Do
+  not introduce animations, a design system, or new color families.
+- **No new routes, nav items, or screens.** No settings screen. The two delay
+  presets in `src/lib/delays.ts` stay exactly as they are.
+- **No change to the first-run guide, demo seed, ledger metrics, charts, or
+  import/export logic** beyond the error-path, mobile, a11y, and copy fixes
+  named above. Their mechanics are done and out of scope.
+- **No verdict coding anywhere.** No red/green, no score, no streak, no badge,
+  no "better/worse". The alignment stays a mirror, not a grade.
 
 ---
 
-## Non-goals (binding — a built non-goal is a defect)
+## Non-goals (a built non-goal is a defect)
+
 - **No new mechanic and no new drill.** (Planner non-goals, restated.)
-- **No shortening or faking the delay.** The micro delay stays a real
-  15 minutes (`DELAY_PRESETS.micro`). No zero-delay path, no "reveal now"
-  button, no way to reach the alignment without the wait actually elapsing.
-- **No peeking.** The warm-up display never renders the vaulted passage's
-  sentences. The vault guard is not weakened.
-- **No quality score, streak, badge, or leaderboard** anywhere in the guide,
-  nudge, or demo. (Plan binding condition 1 still holds.) The guide counts
-  steps in a fixed checklist; three steps of a first loop is not a streak.
-- **No accounts, no network call, no cloud.** Everything is local. The demo
-  seed is a local write; no data leaves the device.
-- **No new dependencies.** Plain React, existing store, existing tokens.
-- **No onboarding essay, modal takeover, or tour library.** The guide is an
-  inline card with one imperative per step. (Quality bar §4 and §7 together.)
+- **No good/bad or right/wrong signaling in the marks.** The non-color cue is a
+  neutral pattern that means "this text differs". It is never a warning glyph, a
+  strike-through that reads as "deleted-and-wrong", a checkmark, or a color that
+  codes quality. The existing test that forbids "better/worse/wrong/…/score/
+  grade" in the alignment stays green.
+- **No weakening of the vault guard.** The reconstruct and condense screens never
+  render a vaulted original; this pass does not touch that path.
+- **No content rewrite of the public-domain passages.** Seed passage bodies are
+  the authors' own words and are exempt from the copy sweep (as the sweep test
+  already encodes). Only app chrome copy is in scope.
+- **No speculative accessibility scaffolding.** Add the specific cues the
+  criteria require on the surfaces that miss them. Do not add ARIA to elements
+  that are already correct, and do not add a live-region framework.
 
 ---
 
 ## Technical design
 
-### Stack and conventions (match what exists)
-- TypeScript, React 18 function components, CSS Modules with tokens from
-  `src/styles/tokens.css`. Reuse the global `btn`, `btn-primary`,
-  `btn-secondary` classes and `EmptyState` / `ErrorState` / `Skeleton`.
-- Persistence through `store.ts` helpers only; components never call `openDb`.
-- All user and passage text renders as React text nodes (auto-escaped). Never
-  `dangerouslySetInnerHTML`.
-- Pure helpers take `now: number`; call `Date.now()` only at the component edge,
-  as `Home.tsx`, `AttemptCard.tsx`, and `Condense.tsx` already do.
-- Tests: Vitest + Testing Library colocated, `fake-indexeddb` for store tests,
-  Playwright in `e2e/` at the 390px viewport.
+### Stack and conventions (unchanged)
 
-### Data model: NO changes
+TypeScript, React 18 function components, CSS Modules with tokens from
+`src/styles/tokens.css`, global `btn` / `btn-primary` / `btn-secondary` classes,
+and the shared `EmptyState` / `ErrorState` / `Skeleton` primitives. Persistence
+through `src/lib/store.ts` helpers only. All user and passage text renders as
+escaped React text nodes; never `dangerouslySetInnerHTML`. Pure helpers take
+`now`; `Date.now()` is called only at the component edge. Tests: Vitest +
+Testing Library colocated, `fake-indexeddb` for store tests, Playwright in `e2e/`
+at a 390px viewport.
 
-`DB_VERSION` stays 1. No new fields, no new store. First-run state is two keys
-in the existing `settings` store (via `getSetting`/`putSetting`):
+### 1. Non-color alignment marks — `AlignmentView.tsx` + `AlignmentView.module.css`
 
-- `firstRun.microDrillId`: `string` — the id of the guided micro-drill attempt,
-  written when the guide starts it.
-- `firstRun.dismissed`: `boolean` — written `true` when the user skips.
+Current state (`src/components/AlignmentView.tsx`, `AlignmentView.module.css`):
+a differing word renders as `<mark class="mark markOriginal|markYours">` whose
+only distinguishing signal is `background: var(--color-mark-original | -yours)`.
+The legend (`aria-label="What the marks mean"`) shows two `.swatch` squares that
+are pure color plus the text "In the original" / "In yours". A color-blind or
+low-vision user cannot reliably tell a marked word from an unmarked one, nor one
+side's hue from the other's.
 
-The demo attempt is a normal `AttemptRecord` written to `attempts`.
+Required change (keep it neutral and minimal):
 
-### First-run logic — `src/lib/firstRun.ts` (new)
+- **Add a non-color cue to every mark, distinct per side.** Give
+  `.markOriginal` and `.markYours` two different, non-color treatments that both
+  read as "this text differs" and are distinguishable from each other and from
+  plain text without color. A sturdy, honest choice: a solid underline for one
+  side and a dotted (or double) underline for the other, using
+  `text-decoration` / `text-underline-offset` so the cue rides the text and
+  survives at 390px. The cue must not read as a verdict (no strike-through, no
+  color-coded good/bad). Keep both mark backgrounds as the existing neutral
+  tints; the underline is additive, not a replacement, so full-color users see
+  exactly what they see today plus a subtle pattern.
+- **Reflect the cue in the legend.** Each legend item shows the same per-side
+  pattern next to its text label, not a bare color square, so the key itself is
+  legible without color. The legend text ("In the original", "In yours") stays.
+- **Verify mark contrast.** Confirm the marked text keeps sufficient contrast
+  against its tint in both light and dark themes (the mark text uses
+  `--color-text` on the tint). Adjust the tint or text token only if a real
+  contrast miss is found; do not restyle otherwise.
+- **Keep the single-side blocks consistent.** The omission ("Only in the
+  original") and addition ("Only in yours") blocks already carry a text label
+  that names the side, so they are not color-only; apply the same per-side mark
+  pattern to their `<mark>` for visual consistency.
+- **Provability.** Add a `data-side="original" | "yours"` attribute (or an
+  equivalent stable hook) to each `<mark>` and to each legend swatch so a test
+  can assert that both sides are distinguished by a non-color attribute, not
+  only by class-driven color. Extend `AlignmentView.test.tsx` to assert:
+  (a) marked words carry the per-side non-color hook; (b) the legend exposes the
+  same per-side hook; (c) the existing "never claims one version is better" and
+  two-side-labeled assertions still pass.
 
-Pure, deterministic, no I/O. This is where every gate and step decision lives so
-it is unit-testable without a DOM.
+This is the differentiator surface, so it is held to the differentiator, not
+just the baseline: the fix must be honest (differences, never worseness),
+precise (every marked word and both legend keys), and legible without color.
 
-```ts
-import type { AttemptRecord } from "./db";
+### 2. Designed error paths on start/save actions
 
-export const FIRST_RUN_DISMISSED_KEY = "firstRun.dismissed";
-export const FIRST_RUN_MICRO_DRILL_KEY = "firstRun.microDrillId";
+Four actions today catch a storage failure and only reset a busy flag, leaving
+the user on a dead-looking tap with no next step:
 
-/** Fixed short seeds for the guided drill and its warm-up. Both must exist in
- *  seedPassages and be distinct. Verified by a test. */
-export const MICRO_DRILL_PASSAGE_ID = "wilde-dorian-gray-preface";
-export const WARMUP_PASSAGE_ID = "lincoln-gettysburg-address";
+- `src/routes/Library.tsx` `start()` — `catch { setStarting(false); }`.
+- `src/components/PastePassage.tsx` — its start path (same shape).
+- `src/components/FirstRunGuide.tsx` `startDrill()` — `catch { setStarting(false); }`.
+- `src/routes/Condense.tsx` `confirmVault()` — `catch { setVaulting(false); }`.
 
-/** True once any attempt is reconstructed. The master switch: when true, no
- *  first-run surface shows, ever. */
-export function hasCompletedAttempt(attempts: AttemptRecord[]): boolean;
+For each, surface an in-voice, positive, actionable message on failure instead
+of a silent reset. Reuse the wording already used elsewhere for the same cause
+("This device blocked the save. Allow storage, then try again." matches
+`Reconstruct.tsx`). Render it inline near the action with `role="alert"` and
+clear it on the next attempt. Do not add a new component or a global toast; a
+local inline message string beside the button is enough and matches the existing
+`Reconstruct`/`Ledger` inline-message pattern. This satisfies the QUALITY BAR
+"error states are designed surfaces" clause on the start/save paths that
+currently miss it, without touching the happy path.
 
-export type StepState = "todo" | "active" | "done";
+Keep the messages swept: positive, plain, one idea per sentence, no dash-aside,
+no banned vocabulary.
 
-export interface GuideStep {
-  label: string;      // one short imperative sentence (from the copy inventory)
-  state: StepState;
-}
+### 3. Keyboard-visible skip link — `AppLayout.tsx` + `AppLayout.module.css`
 
-export type GuideView =
-  | { kind: "hidden" }
-  | { kind: "start"; steps: GuideStep[] }                       // no drill yet
-  | { kind: "condensing"; attemptId: string; steps: GuideStep[] }
-  | { kind: "waiting"; attemptId: string; warmup: boolean; steps: GuideStep[] }
-  | { kind: "ripe"; attemptId: string; steps: GuideStep[] };
+The skip link is `<a href="#main" class="visually-hidden">Skip to content</a>`.
+`visually-hidden` keeps it clipped even on focus, so a keyboard user never sees
+it. Add a focus-reveal: on `:focus` / `:focus-visible` the link un-clips to a
+visible, positioned control (top-left, above the sticky header's z-index) with
+the existing focus outline, then re-hides on blur. Use a small CSS-module class
+on the link plus a `:focus-visible` rule; do not change the link text or target.
+`#main` already exists on the `<main>` landmark.
 
-export interface FirstRunInput {
-  attempts: AttemptRecord[];
-  microDrillId: string | undefined;   // from settings
-  dismissed: boolean;                  // from settings
-  now: number;
-}
+### 4. Mobile 390px + accessibility sweep (every route)
 
-/**
- * The single source of truth for what the guide shows.
- * - Returns { kind: "hidden" } when dismissed OR hasCompletedAttempt(attempts).
- * - Otherwise resolves the tracked attempt: the microDrillId attempt if
- *   present, else the most recent non-reconstructed attempt (by createdAt),
- *   else none.
- * - With no tracked attempt -> "start".
- * - Tracked attempt by attemptState (reuse src/lib/attempts.ts):
- *     condensing -> "condensing"; vaulted -> "waiting"; ripe -> "ripe".
- *     ("reconstructed" cannot occur: it would make hasCompletedAttempt true.)
- * - warmup is true in "waiting" only when the tracked attempt's delayType is
- *   "micro" (a 3-day standard wait shows no warm-up).
- * - steps: exactly three GuideStep entries, labels from the copy inventory,
- *   with deterministic states:
- *     step 1 (note):    active while "start"/"condensing"; else "done".
- *     step 2 (warm-up): "todo" in "start"/"condensing"; "active" in "waiting";
- *                       "done" in "ripe".
- *     step 3 (rebuild): "todo" until "ripe"; "active" in "ripe".
- */
-export function firstRunView(input: FirstRunInput): GuideView;
+Audit each route at a 390px viewport and fix concrete misses only. Known-good
+baselines to preserve (do not "improve" them):
 
-/** True when the populated-dashboard pipeline nudge should show: there is at
- *  least one attempt, and first-run is active (not dismissed, not completed). */
-export function showPipelineNudge(
-  attempts: AttemptRecord[],
-  dismissed: boolean,
-): boolean;
-```
+- `AppLayout` header is sticky with a max-width container and ~44px nav targets;
+  the main content pads to `--container-max` and centers.
+- `AlignmentView` `.pairGrid` is two columns that collapse to one at
+  `max-width: 640px`, and `.sentence` uses `overflow-wrap: anywhere`, so long
+  words and side-by-side sentences do not scroll sideways at 390px.
+- `TrendChart` measures its container with a `ResizeObserver` and renders inline
+  SVG at native text size, with `role="img"` and a one-sentence `aria-label`.
+- `Skeleton` announces via `role="status"`; `ErrorState` uses `role="alert"`;
+  the condense/reconstruct textareas are labeled with real `<label htmlFor>`;
+  the delay chooser is a `<fieldset>`/`<legend>` with radio labels; the library
+  filters are a labeled `role="group"` with `aria-pressed`.
 
-Reuse `attemptState` from `src/lib/attempts.ts` for ripeness; do not
-reimplement the clock logic.
+Check specifically for, and fix if present: any fixed pixel width or `min-width`
+that exceeds ~358px of content at 390px; any multi-column grid (library cards,
+ledger, file actions, guide steps) that does not stack or wrap on a narrow
+screen; any touch target under ~44px on a primary or secondary action; any
+interactive control reachable only by mouse; any input without an associated
+label; any heading level skipped within a screen; any meaningful image without
+alt text. Report in the run summary exactly what was changed and what was
+already compliant. Do not restyle compliant screens.
 
-### Demo builder — `src/lib/demo.ts` (new)
+**Confirmed misses to fix (found in the audit; each is a specific, named gap):**
 
-Pure, deterministic. Builds one reconstructed `AttemptRecord` from a seed
-passage and a canned imperfect rebuild, run through the real alignment engine so
-the demo shows genuine marks.
+- **Ledger import control has no visible focus indicator.** In
+  `src/routes/Ledger.tsx` the `ImportControl` hides the real `<input type="file">`
+  with `className="visually-hidden"`, so its `:focus-visible` outline is clipped
+  and the styled `<label>` wrapper receives no focus style. A keyboard user
+  tabbing to Import / Restore sees nothing. Fix: give the `<label>` a
+  `focus-within` treatment (the existing focus outline) so the control shows a
+  visible focus ring when the hidden input is focused. Do not un-hide the input;
+  do not change its behavior.
+- **Full-screen `ErrorState` starts at `<h2>`, leaving those pages with no
+  `<h1>`.** `src/components/ErrorState.tsx` renders its title as `<h2>`. When it
+  is the whole screen (the Home, Ledger, Align, Condense, Reconstruct error and
+  not-found paths), the page has no `<h1>`, so the heading hierarchy skips the
+  top level. Fix so an error page has a single `<h1>`: promote the ErrorState
+  title to `<h1>` (it is always the page's top heading in every current use),
+  keeping `role="alert"` on the region. Verify no screen ends up with two `<h1>`s
+  after the change.
+- **Primary nav has no current-page indicator.** In
+  `src/components/AppLayout.tsx` the Library and Ledger nav links carry no
+  `aria-current` and no active style. Add `aria-current="page"` (via
+  `NavLink` from `react-router-dom`, already a dependency, or an equivalent) and
+  a subtle active style so the current section is conveyed to sighted and
+  assistive-tech users. Keep it subtle; the nav stays visibly subordinate to the
+  page's primary action.
+- **Secondary `<Link>` in `EmptyState` is not visibly subordinate (cosmetic,
+  optional).** `EmptyState.module.css` `.secondary` styles only
+  `:global(button)`, so a secondary rendered as an `<a>` (Home's "See an
+  example") renders as a plain accent link, not a subordinate control. If a
+  quick CSS-only fix makes it match, apply it; otherwise leave it and note it.
+  This is a nicety, not a bar miss.
 
-```ts
-import type { AttemptRecord } from "./db";
+### 5. Copy sweep (every user-visible string)
 
-/** Stable id so a re-seed is idempotent even if the empty-store guard is
- *  bypassed. */
-export const DEMO_ATTEMPT_ID = "demo-first-minute";
+The mechanical sweep (`src/test/copy-sweep.test.ts`) already scans all
+`src/**/*.{ts,tsx,css}` and `README.md` for em/en dashes, the banned LLM
+vocabulary list, and negative empty-state phrasing, exempting `seedPassages.ts`
+and test files. Keep it green. In addition, read every app-chrome string once
+for tone: positive and direct, plain, one idea per sentence, no register
+inflation. Fix any hit in the same run and re-run the sweep.
 
-/** A reconstructed attempt with a real cached alignment that contains at least
- *  one omission and one addition (genuine gaps). now sets createdAt,
- *  reconstructedAt; vaultedAt/vaultedUntil are set in the past. */
-export function buildDemoAttempt(now: number): AttemptRecord;
-```
+**Confirmed copy to fix (negative "did not / is not" error titles).** The
+planner criterion asks for positive, plain phrasing that says what to do, not
+what failed. These error titles state the failure; rewrite them to say the next
+step, keeping the existing (already-positive) message body:
 
-Reuse the worked-example prose so demo prose lives in one place: export
-`EXAMPLE_SEED_ID` and keep `EXAMPLE_REBUILD` from `src/data/workedExample.ts`,
-and build the demo from that seed's `sentences` plus `EXAMPLE_REBUILD`, aligned
-with `alignSentences(passage.sentences, segmentSentences(EXAMPLE_REBUILD))`.
-Fill `hints` with one short note per sentence (length equals
-`passage.sentences.length`), `status: "reconstructed"`, `delayType: "micro"`,
-`cursor` at the end, and `reconstructionText: EXAMPLE_REBUILD`. The existing
-`getWorkedExample` already proves this alignment carries an omission and an
-addition; a demo test re-asserts it.
+- `src/routes/Home.tsx` `title="Your attempts did not load"` → a positive title
+  such as `"Reload your attempts"`.
+- `src/routes/Ledger.tsx` `title="Your ledger did not load"` → `"Reload your
+  ledger"`.
+- The shared not-found title `"That attempt is not here"` (in `Align.tsx`,
+  `Condense.tsx`, `Reconstruct.tsx`) → a positive title such as `"Start a fresh
+  attempt"`, which matches the message body ("It may have been removed. Start a
+  fresh one from your attempts.").
 
-### Store — `src/lib/store.ts` (extend; keep all existing helpers)
+These rewrites are examples the implementer may adopt or improve; whatever ships
+must be swept (no dash-aside, no banned vocabulary, positive and plain) and must
+still name the real next step. Do not expand the mechanical banned list unless a
+real recurring tell justifies it; if so, note it in the run summary.
 
-```ts
-/**
- * Seeds the demo attempt for the SEED_DEMO staging demo. No-op when the store
- * already holds any attempt, so it never clobbers real user work and is
- * idempotent across restarts. now is passed in for testability.
- */
-export async function seedDemoAttempt(now: number): Promise<void>;
-```
+### 6. README verification
 
-Implementation: `if ((await countAttempts()) > 0) return;` then
-`db.put("attempts", buildDemoAttempt(now))`. The existing `getSetting` /
-`putSetting` cover the first-run settings keys; no new settings helper needed.
+`README.md` must let a stranger understand, run, and contribute. Verify the
+commands against the real files, not from memory: `npm install` / `npm run dev`;
+`docker build -t franklins-gym .` and `docker run --rm -p 8080:80 franklins-gym`
+against the actual `Dockerfile`; the `UMAMI_URL` / `UMAMI_WEBSITE_ID` /
+`SENTRY_DSN` / `SEED_DEMO` runtime env against `docker-entrypoint.sh`; the
+`docker-compose.staging.yml` reference; `npm test`, `bash scripts/e2e.sh`, and
+`npm run build && npm run check:size`. Correct any command, path, or flag that
+does not match. Confirm no factory internals (agent names, task types, internal
+service paths) appear. The current README reads accurate; this task is to prove
+each command against the files and fix drift, not to rewrite it.
 
-### Config — `src/lib/config.ts` (extend)
+One confirmed drift to fix (a comment, so exempt from the copy sweep, but
+factually wrong now): `docker-compose.staging.yml` still comments the
+`SEED_DEMO` line with "This release implements no demo behavior". The demo was
+delivered in the prior EPIC (`seedDemoAttempt`, the `SEED_DEMO` runtime flag, and
+`docker-entrypoint.sh` forwarding it). Update that comment to describe the real
+behavior (set the flag to open on a ready-made demo attempt) so the deploy
+manifest does not mislead. Do not change the value or the entrypoint.
 
-Add `seedDemo: boolean` to `AppConfig`, and `SEED_DEMO?: string` to
-`RuntimeConfig`. Read it with the existing runtime-over-build precedence and the
-placeholder guard, then parse to a boolean:
+### 7. Perceived-speed verification of reconstruct → align
 
-```ts
-// Truthy tokens (case-insensitive): "1", "true", "yes", "on".
-// Everything else, including "", "0", "false", is false.
-function truthy(value: string): boolean { /* ... */ }
+`Reconstruct.tsx` computes the alignment synchronously (a ≤40×40 grid, sub-second)
+inside `submit()`, shows the button label "Aligning" while `saving` is true, and
+navigates to `/align/:id`, which renders `<Skeleton lines={6}>` until the record
+loads. This already avoids a white flash. This task proves it: an e2e/component
+assertion that submitting a rebuild shows a busy/progress control within 100ms
+and that the align route holds a layout-steady skeleton (not a blank screen)
+before the marks appear.
 
-// in getConfig():
-seedDemo: truthy(pick("SEED_DEMO", import.meta.env.VITE_SEED_DEMO)),
-```
+One sharpening: `submit()` sets `saving` and then runs `alignSentences(...)`
+synchronously in the same handler, so the "Aligning" label is not guaranteed to
+paint before the compute blocks the main thread. The grid is small so this is
+usually invisible, but to honor the "feedback within 100ms" clause reliably, let
+the busy state paint before the synchronous work runs (for example yield once to
+the event loop after `setSaving(true)` and before `alignSentences`, or move the
+compute behind a microtask/`requestAnimationFrame`). Keep it minimal and add no
+artificial delay. If any real white-flash or missing-feedback gap is found on the
+transition, close it with an in-place progress indicator, not a spinner with no
+layout.
 
-`pick` already returns "" when unset, so `seedDemo` defaults to `false` in dev,
-test, and any deploy that does not set the flag.
+### First meaningful render
 
-### Container plumbing — `docker-entrypoint.sh` and `.env.example`
-
-`docker-compose.staging.yml` already passes `SEED_DEMO` (default `"1"`), but the
-entrypoint does not forward it to the browser. Add one line to the generated
-`env-config.js`:
-
-```sh
-window.__APP_CONFIG__ = {
-  UMAMI_URL: "${UMAMI_URL:-}",
-  UMAMI_WEBSITE_ID: "${UMAMI_WEBSITE_ID:-}",
-  SENTRY_DSN: "${SENTRY_DSN:-}",
-  SEED_DEMO: "${SEED_DEMO:-}"
-};
-```
-
-Add a commented placeholder to `.env.example` so local dev can opt in:
-
-```
-# Demo seed for staging. Set to 1 to open on a ready-made demo attempt.
-# Leave blank for normal use.
-# VITE_SEED_DEMO=
-```
-
-No secret is involved; this stays consistent with the existing runtime-config
-pattern.
-
-### Bootstrap — `src/components/Bootstrap.tsx` (extend)
-
-After the DB opens successfully and before rendering children, seed the demo
-when configured. Keep it non-fatal: a demo-seed failure must not block the app.
-
-```ts
-open()
-  .then(async () => {
-    if (getConfig().seedDemo) {
-      try { await seedDemoAttempt(Date.now()); } catch { /* demo is optional */ }
-    }
-    return active && setState("ready");
-  })
-  .catch(() => active && setState("error"));
-```
-
-Because the seed is gated on an empty store, a returning real user is never
-reseeded. The injectable `open` prop stays; tests that do not set `seedDemo`
-seed nothing.
-
-### First-run guide — `src/components/FirstRunGuide.tsx` (new) + `.module.css`
-
-Presentational-plus-actions component rendered by `Home`. It receives the loaded
-attempts and a reload callback; it reads its own settings and computes its view
-with `firstRunView`.
-
-Props:
-
-```ts
-interface FirstRunGuideProps {
-  attempts: AttemptRecord[];   // already loaded by Home
-  now: number;                 // Date.now() captured once by Home per render
-  onChanged: () => void;       // ask Home to reload attempts after an action
-}
-```
-
-Behavior:
-- On mount (and after actions) load `FIRST_RUN_DISMISSED_KEY` and
-  `FIRST_RUN_MICRO_DRILL_KEY` via `getSetting`. While loading settings, render
-  nothing (the guide is additive; a one-frame absence is fine).
-- Compute `view = firstRunView({ attempts, microDrillId, dismissed, now })`.
-  Render nothing when `view.kind === "hidden"`.
-- Render a card: a heading, the three-step checklist (each step shows its
-  imperative label and a tick/active/idle marker reflecting `step.state`), the
-  active-step action button, and a "Skip the guide" text button.
-- **Actions:**
-  - `start` (view `"start"`): create the micro-drill attempt from the fixed
-    seed snapshot (`createAttempt`), `putSetting(FIRST_RUN_MICRO_DRILL_KEY,
-    attempt.id)`, then `navigate('/condense/' + attempt.id)`. Guard against
-    double taps with a `starting` flag; the button shows a busy label within
-    100ms.
-  - `"condensing"`: the action is a link "Keep noting" to
-    `/condense/:attemptId`.
-  - `"waiting"`: when `warmup` is true, render the **warm-up block** (below) and
-    the live countdown `ripeLabel(vaultedUntil, now)`; the rebuild action is
-    disabled/absent until ripe.
-  - `"ripe"`: the action is a link "Rebuild now" to `/reconstruct/:attemptId`.
-  - `skip` (every view): `putSetting(FIRST_RUN_DISMISSED_KEY, true)`, then
-    `onChanged()` so Home re-renders without the guide.
-- **Warm-up block:** heading "Warm-up reading", one line, then the
-  `WARMUP_PASSAGE_ID` seed's sentences rendered read-only as a list. It never
-  shows the vaulted passage. It has no input and writes nothing.
-- The `start` view also offers the existing secondary links "Browse passages"
-  (`/library`) and "See an example" (`/example`) as subordinate actions, so a
-  new user who prefers the library still has it.
-
-Accessibility: the checklist is a real `<ol>`; each step's state is conveyed by
-text (for example a leading "Done" / "Now" label or `aria-label`), not by color
-alone. The active action is one clear primary control; "Skip the guide" is a
-visibly subordinate button. Touch targets ~44px.
-
-### Home — `src/routes/Home.tsx` (extend)
-
-- Capture `now` once (already does) and compute
-  `completed = hasCompletedAttempt(attempts)`.
-- **Empty store (`attempts.length === 0`):** if first-run is active (not
-  dismissed), render `<FirstRunGuide .../>` as the primary surface. If the guide
-  resolves to hidden (user skipped earlier), fall back to the existing
-  `EmptyState` unchanged. The guide loads `dismissed` itself, so Home can always
-  render the guide when the store is empty and let the guide decide; when the
-  guide renders nothing, Home shows the `EmptyState`. Implementer's choice
-  between (a) letting the guide report "hidden" up via `onChanged`/state or
-  (b) Home reading `dismissed` too. Keep whichever is simplest; the observable
-  rule is: empty store + not dismissed → guide; empty store + dismissed →
-  `EmptyState`.
-- **Populated store:** render the guide banner above the pipeline list (it shows
-  itself only while first-run is active and hides once completed). Below or
-  above the list, when `showPipelineNudge(attempts, dismissed)` is true, render
-  the one-line **pipeline nudge**. Keep the dashboard uncluttered: the nudge is
-  one short sentence, not a card competing with the guide.
-- Nothing else about the pipeline list, ordering, or cap changes.
-
-### Condense — `src/routes/Condense.tsx` (extend)
-
-Default the delay chooser to `micro` for the guided micro-drill attempt so the
-first session ends the same day. In the load `.then`, after the attempt loads,
-read `getSetting<string>(FIRST_RUN_MICRO_DRILL_KEY)`; if it equals the loaded
-attempt id, `setDelay("micro")`. Otherwise leave `DEFAULT_DELAY` ("standard").
-The user can still change it (the chooser stays). This is the only Condense
-change; the sentence-by-sentence capture and the vault guard are untouched.
-
-### Routes and nav
-
-No route or nav changes. The guide and nudge live inside the existing home
-dashboard. `/example`, `/library`, `/condense`, `/reconstruct`, `/align`, and
-`/ledger` are unchanged.
-
-### Copy inventory (ships verbatim; already swept)
-
-Guide heading: "Finish your first loop today".
-Guide lede: "Note a short passage, pause a few minutes, then rebuild it. Your
-first alignment lands today."
-Steps: "Note each sentence in a few words.", "Read the warm-up while the vault
-holds.", "Rebuild the passage and see your alignment."
-Actions: "Start the quick drill", "Keep noting", "Rebuild now", "Skip the
-guide", "Browse passages", "See an example".
-Warm-up: "Warm-up reading", "Read this while your passage ripens. The wait
-keeps your memory honest."
-Pipeline nudge: "Condense a few passages so one is always ripe when you come
-back."
-Step status labels (for screen readers / non-color cues): "Done", "Now",
-"Next".
-
-Countdown text reuses `ripeLabel` (for example "Ripe in 12 minutes", "Ready"),
-already swept in `src/lib/attempts.ts`. The demo attempt reuses existing
-`AttemptCard` copy and the real passage title; it introduces no new strings.
-
-`src/test/copy-sweep.test.ts` scans every new `src` file automatically. Every
-string above is free of em/en dashes, banned LLM vocabulary, and negative
-empty-state phrasing. Keep it green.
-
----
-
-## QUALITY BAR application (binding on the new surfaces)
-
-- **Perceived speed.** The guide reads two settings keys and renders
-  synchronously off attempts Home already loaded. "Start the quick drill" and
-  "Skip the guide" show a busy/updated state within 100ms. The demo seed is one
-  local `put` gated on an empty store; it adds no visible delay to first render
-  (Bootstrap already shows a skeleton while opening). No new unbounded lists;
-  the warm-up renders one short seed passage (≤3 sentences).
-- **Mobile-first (390px).** The guide card, checklist, warm-up block, and nudge
-  stack to one column with no horizontal scroll; buttons and step rows are
-  ~44px targets. The e2e viewport is 390px; keep it green.
-- **Designed states.** The guide IS a designed first-run surface. The empty
-  state after a skip falls back to the existing designed `EmptyState`. The
-  warm-up block gives the wait a purpose instead of a bare countdown.
-- **First-run (this EPIC is the clause).** The guide actively walks a brand-new
-  user through the core action once: three steps, each one short imperative
-  anchored to the real control, skippable at every step, shown only until the
-  first success, and never to a returning user (gate: `hasCompletedAttempt`).
-  The micro-drill makes the first success reachable the same day. §4 and §7 are
-  met together: the guide points at controls, it does not lecture.
-- **Security hygiene.** No server, no network call, no new route. All passage
-  and warm-up text renders as escaped React text nodes. The vault guard is not
-  weakened; the warm-up never renders the vaulted passage. `SEED_DEMO` is a
-  non-secret display flag read from runtime config like the others; no PII, no
-  key, nothing logged.
-- **Accessibility.** The checklist is a semantic `<ol>` with text status cues
-  (not color alone), one clear primary action per state, a labeled subordinate
-  "Skip the guide", visible focus via existing global styles, full keyboard
-  reach.
-- **Copy.** Every new string is in the inventory above and swept: no em/en
-  dashes, no banned vocabulary, no negative phrasing. Positive, plain, one idea
-  per sentence.
+`index.html` ships a static shell and loads `env-config.js` before the module
+bundle; `AppLayout` paints the header immediately and `Bootstrap` shows a
+skeleton while IndexedDB opens. Confirm the first meaningful paint is content
+(header + skeleton), not a blank page, within ~1s. No code change expected
+unless a real regression is found.
 
 ---
 
 ## Ordered task list (each item is provable)
 
-1. **Config: `seedDemo`.** Extend `src/lib/config.ts` with `seedDemo` and the
-   `truthy` parser; extend `docker-entrypoint.sh` and `.env.example`.
-   - AC: `getConfig().seedDemo` is `false` when nothing is set; `true` for
-     runtime `SEED_DEMO` in {"1","true","yes","on"} (case-insensitive); `false`
-     for "", "0", "false", and an uninterpolated `${SEED_DEMO}` placeholder;
-     runtime beats build env, matching the existing precedence.
+1. **Non-color alignment marks.** Update `AlignmentView.tsx` and
+   `AlignmentView.module.css` so each mark and each legend key carries a
+   per-side, non-color cue distinct from plain text and from the other side, and
+   add the `data-side` (or equivalent) hook.
+   - AC: in the rendered alignment, a marked word and the legend key for each
+     side expose a stable non-color hook identifying the side; a test asserts
+     both sides are distinguishable without relying on the color class.
+   - AC: the marks stay neutral — the existing `AlignmentView.test.tsx`
+     assertions (two labeled sides, neutral length line, and the "never claims
+     one version is better" regex over `better|worse|wrong|right|missed|failed|
+     lost|score|grade`) all still pass.
+   - AC: at 390px the cue is visible and causes no horizontal scroll; the
+     matched-pair grid still collapses to one column.
 
-2. **First-run logic.** `src/lib/firstRun.ts` with constants,
-   `hasCompletedAttempt`, `firstRunView`, `showPipelineNudge`.
-   - AC: `hasCompletedAttempt` is true iff some attempt is `reconstructed`.
-   - AC: `firstRunView` returns `hidden` when dismissed or when any attempt is
-     reconstructed; `start` with no tracked attempt; `condensing`/`waiting`/
-     `ripe` matching the tracked attempt's `attemptState`; falls back to the
-     most recent non-reconstructed attempt when `microDrillId` is unset; sets
-     `warmup` true only for a `micro`-delay waiting attempt; returns exactly
-     three steps with the documented deterministic states; same input twice
-     gives identical output.
-   - AC: `MICRO_DRILL_PASSAGE_ID` and `WARMUP_PASSAGE_ID` both exist in
-     `seedPassages`, are distinct, and are `short` band (assert against the
-     seed data).
+2. **Designed error paths.** Add an in-voice inline error on failure to
+   `Library.start`, `PastePassage` start, `FirstRunGuide.startDrill`, and
+   `Condense.confirmVault`.
+   - AC: when the underlying store call rejects, each surface shows a positive,
+     actionable `role="alert"` message and re-enables its action, instead of
+     silently resetting; a test forces the rejection and asserts the message
+     appears. The happy path is unchanged (existing tests stay green).
 
-3. **Demo builder + store seed.** `src/lib/demo.ts` (`buildDemoAttempt`,
-   `DEMO_ATTEMPT_ID`) and `seedDemoAttempt` in `src/lib/store.ts`.
-   - AC: `buildDemoAttempt(now)` returns a `reconstructed` attempt whose cached
-     alignment has at least one `omission` and one `addition`, with
-     `hints.length === passage.sentences.length`, a non-empty
-     `reconstructionText`, and finite `reconstructedAt`/`vaultedAt`/
-     `vaultedUntil`; deterministic for a fixed `now`.
-   - AC (fake-indexeddb): `seedDemoAttempt` on an empty store adds exactly one
-     attempt (`hasCompletedAttempt(listAttempts())` becomes true); called again,
-     or on a store that already has any attempt, it adds nothing.
+3. **Keyboard-visible skip link.** Reveal the `AppLayout` skip link on focus.
+   - AC: the "Skip to content" link is clipped by default and becomes a visible,
+     focus-outlined control when focused via keyboard; activating it moves focus
+     to `#main`. A test asserts the link is present, targets `#main`, and is not
+     permanently `visually-hidden` (has a focus-reveal class/rule).
 
-4. **Bootstrap seeding.** Wire `seedDemoAttempt` into `src/components/Bootstrap.tsx`
-   behind `getConfig().seedDemo`.
-   - AC: with `seedDemo` true and an empty store, after bootstrap the store
-     holds the demo attempt; with `seedDemo` false, nothing is seeded; a
-     seed failure does not put Bootstrap into the error state.
+4. **Mobile + a11y sweep.** Walk every route at 390px; fix concrete misses only,
+   including the four confirmed ones: the Ledger import control focus indicator,
+   the full-screen `ErrorState` `<h1>`, the primary-nav current-page indicator,
+   and (optionally) the `EmptyState` secondary-link styling.
+   - AC: at 390px no route scrolls horizontally; every primary and secondary
+     action is a ~44px target; every input has a label; headings are ordered
+     (each screen has exactly one `<h1>`, including error pages) and landmarks
+     present; every interactive element is keyboard reachable with a visible
+     focus state (the Ledger import control included); the current nav item
+     carries `aria-current="page"`. The e2e asserts no horizontal scroll on each
+     route; the run summary lists what changed and what was already compliant.
 
-5. **First-run guide component.** `src/components/FirstRunGuide.tsx` + css.
-   - AC: with an empty store and not dismissed, renders the heading, three
-     imperative steps, and "Start the quick drill"; clicking it creates an
-     attempt, persists `firstRun.microDrillId`, and navigates to
-     `/condense/:id`.
-   - AC: for a tracked `vaulted` `micro` attempt, renders the warm-up block
-     (the `WARMUP_PASSAGE_ID` sentences, never the vaulted passage) and a
-     countdown, with no active rebuild link; for a `ripe` attempt, renders
-     "Rebuild now" to `/reconstruct/:id`.
-   - AC: "Skip the guide" persists `firstRun.dismissed` and the guide
-     disappears; the guide renders nothing when any attempt is reconstructed.
+5. **Copy sweep.** Keep `copy-sweep.test.ts` green, rewrite the three negative
+   error titles to positive phrasing, and read every chrome string for tone.
+   - AC: the "did not load" / "is not here" error titles are replaced with
+     positive, swept titles that still name the next step; `npm test` including
+     `copy-sweep.test.ts` passes; the summary states that every touched string
+     was swept for dashes, banned vocabulary, and negative phrasing.
 
-6. **Home wiring + pipeline nudge.** `src/routes/Home.tsx`.
-   - AC: empty store + not dismissed shows the guide; empty store + dismissed
-     shows the existing `EmptyState`; a populated first-run store shows the
-     pipeline nudge line; once an attempt is reconstructed, neither the guide
-     nor the nudge renders and the pipeline list is unchanged.
+6. **README verification.** Prove each command against the real files; fix drift.
+   - AC: every command in `README.md` matches the `Dockerfile`,
+     `docker-entrypoint.sh`, compose file, and `package.json` scripts; no factory
+     internals appear; the run and test sections are accurate.
 
-7. **Condense micro default.** `src/routes/Condense.tsx`.
-   - AC: when the loaded attempt id equals the persisted
-     `firstRun.microDrillId`, the delay chooser defaults to "In 15 minutes"
-     (`micro`); for any other attempt it defaults to "In 3 days" (`standard`);
-     existing Condense tests stay green.
+7. **Perceived-speed proof.** Assert the reconstruct → align transition gives
+   feedback within 100ms and holds a skeleton with no white flash.
+   - AC: a test asserts the submit control shows a busy/progress state on click
+     and that `/align/:id` renders a layout-holding skeleton before the marks;
+     no artificial delay is added.
 
-8. **E2E + sweep.** Extend `e2e/smoke.spec.ts`; run the full suite.
-   - AC (clean store, 390px): the home dashboard shows "Finish your first loop
-     today" and "Start the quick drill"; clicking it opens `/condense/`; the
-     delay chooser shows "In 15 minutes" selected; after vaulting with the
-     micro delay the dashboard guide shows "Warm-up reading" and a countdown;
-     "Skip the guide" removes the guide and a reload keeps it gone. No
-     horizontal scroll.
-   - AC (`SEED_DEMO` via `page.addInitScript` setting
-     `window.__APP_CONFIG__ = { SEED_DEMO: "1" }` before load, 390px): the home
-     dashboard shows a demo attempt card with "See alignment"; following it
-     lands on `/align/` with the legend ("In the original" / "In yours") and at
-     least one `mark`. No horizontal scroll.
-   - AC: `npm test` including `copy-sweep.test.ts` passes.
+8. **Full suite green.** Run `npm test` and `bash scripts/e2e.sh` to completion.
+   - AC: both suites pass; `npm run build && npm run check:size` stays within
+     the bundle budget (no new dependency, no material size regression).
 
 ---
 
 ## Test plan (which test proves each planner criterion)
 
-**Criterion 1 (guided path, 2 to 4 steps, imperative, anchored, skippable,
-only until first success, never for returning users):** `firstRun.test.ts` pins
-`firstRunView` (three steps, deterministic states, hidden when dismissed or
-completed) and `hasCompletedAttempt`. `FirstRunGuide.test.tsx` proves the
-rendered steps are imperative labels from the inventory, the active action
-navigates to the real control, "Skip the guide" persists dismissal and hides
-the guide, and a reconstructed attempt hides it. The e2e proves the visible
-walk at 390px and that skip survives a reload.
+**Criterion — every screen usable at 390px, no horizontal scroll, ~44px targets,
+readable text:** the Playwright suite (`e2e/`) runs at a 390px viewport and, for
+each route, asserts `document.scrollingElement.scrollWidth <= clientWidth` (no
+horizontal scroll) and that the primary action is tappable. Component tests keep
+the labeled controls and ~44px `btn`/`navLink` targets pinned. Task 4 AC.
 
-**Criterion 2 (micro-drill: short passage, minutes-long real delay filled by a
-distractor, session ends in an alignment the same day):** `firstRun.test.ts`
-asserts the drill passage is a short seed and that a `micro`-delay waiting view
-carries the warm-up. `FirstRunGuide.test.tsx` asserts the warm-up block renders
-the warm-up passage (and never the vaulted one) plus a countdown, and that the
-ripe view links to reconstruct. A unit assertion pins
-`DELAY_PRESETS.micro.ms < 24 * 60 * 60 * 1000` and that the guided attempt
-defaults to `micro` in `Condense.test.tsx`, which together prove the delay is
-real yet lands the alignment the same day. The reconstruct → align leg itself
-is already covered by `Reconstruct.test.tsx` and the existing alignment e2e; the
-e2e does not wait a real 15 minutes (stated here so no reviewer expects it).
+**Criterion — empty, loading, and error states designed on every screen:** the
+existing `Skeleton` (loading), `ErrorState` (error), and `EmptyState` (empty)
+primitives are already used across Home, Ledger, Library, Condense, Reconstruct,
+and Align; their component tests stay green. Task 2 adds the missing designed
+error surfaces on the start/save actions, proven by tests that force a store
+rejection and assert the in-voice `role="alert"` message. Task 7 proves the
+loading state holds the layout on the reconstruct → align transition.
 
-**Criterion 3 (dashboard nudges building a pipeline, brief hint not a
-lecture):** `firstRun.test.ts` pins `showPipelineNudge`. `Home.test.tsx`
-asserts the one-line nudge appears on a populated first-run dashboard and is a
-single short sentence, and that it disappears once an attempt is reconstructed.
+**Criterion — perceived speed (first render ~1s, feedback within 100ms,
+alignment shows in-place progress and never flashes white, lists capped):** Task
+7 proves the align transition (busy label within 100ms, skeleton holds, no white
+flash). Home caps its pipeline at 50 and Ledger paginates at 20 with a "Show
+more" and caps the trend at 60; their tests keep those caps pinned. The align
+engine's sub-second bound is documented in `align.ts` and covered by
+`align.test.ts`.
 
-**Criterion 4 (`SEED_DEMO` opens on demo state reaching the alignment within a
-minute, no hand-crafted input):** `config.test.ts` pins `seedDemo` parsing.
-`demo.test.ts` proves `buildDemoAttempt` yields a reconstructed attempt with a
-real alignment carrying genuine gaps. `store.test.ts` proves `seedDemoAttempt`
-idempotency and empty-store gating. `Bootstrap.test.tsx` proves seeding happens
-only when `seedDemo` is true and the store is empty. The e2e proves the seeded
-app opens on a demo card and reaches `/align/` in one tap with a visible mark.
+**Criterion — accessibility (contrast, focus, labeled inputs, semantic headings
+and landmarks, keyboard reach, alt text; marks conveyed by more than color):**
+Task 1 delivers and tests the non-color marks and legend (the core of this
+criterion for this product). Task 3 delivers and tests the keyboard-visible skip
+link. Task 4 fixes and asserts any remaining label/heading/landmark/keyboard/
+contrast miss. Component tests assert the labeled textareas, the fieldset/legend
+delay chooser, the labeled filter group, the `role="img"` charts, and the
+`role="status"`/`role="alert"` state surfaces.
 
-**Criterion 5 (none of the first-run additions appear once an attempt is
-completed):** `firstRun.test.ts` (`firstRunView` hidden, `showPipelineNudge`
-false when a reconstructed attempt exists) and `Home.test.tsx` (guide and nudge
-both absent, list intact) prove it directly.
+**Criterion — copy sweep (no dashes, no banned vocabulary, no negative
+phrasing; positive, plain, one idea per sentence):** `copy-sweep.test.ts` scans
+all `src/**/*.{ts,tsx,css}` and `README.md` mechanically and must stay green
+(Task 5); the manual tone read fixes anything mechanical rules miss.
 
-Commands: `npm test` (Vitest, includes the copy sweep), `bash scripts/e2e.sh`
-(Playwright in the pinned container). Both must pass before the run ends.
+**Criterion — differentiator verifiably present: the confrontation is reachable
+in the first minute and reads as honest (differences, not worseness):** the
+worked example at `/example` (`WorkedExample.tsx`) reaches a real alignment in
+one tap with no wait, and `SEED_DEMO` opens straight onto a demo alignment; the
+e2e reaches `/align`-style marks in one navigation. `AlignmentView.test.tsx`
+pins that the view states differences only and never codes worseness, and Task 1
+adds the non-color-cue assertions so the confrontation is legible to every user.
+
+**Criterion — README lets a stranger understand, run (exact commands verified
+against the compose files), and contribute; no factory internals:** Task 6
+verifies every command against the real files; `copy-sweep.test.ts` already
+guards the README for tone. A manual check confirms no factory internals.
+
+Commands (both must pass before the run ends): `npm test` (Vitest, includes the
+copy sweep), `bash scripts/e2e.sh` (Playwright in the pinned container).
+`npm run build && npm run check:size` confirms the bundle budget.
 
 ---
 
 ## Notes for the implementer
 
-- The delay stays real. Do not add a shortcut past the wait. The micro preset
-  is already 15 minutes in `src/lib/delays.ts`; reuse it, do not change it, do
-  not add a preset.
-- The warm-up is reading material, not a drill. It has no input, computes
-  nothing, writes nothing, and never renders the vaulted passage.
-- One master gate: `hasCompletedAttempt`. Once any attempt is reconstructed,
-  the guide, the warm-up, and the nudge are all gone. The seeded `SEED_DEMO`
-  attempt is reconstructed, so it correctly suppresses the walkthrough. Prove
-  the walkthrough on a clean store.
-- Keep first-run state in the `settings` store. `DB_VERSION` stays 1; add no
-  `AttemptRecord` field and no object store.
-- Derive ripeness with `attemptState` from `src/lib/attempts.ts`; pass `now`
-  in. Do not reimplement the clock.
-- Reuse the worked-example prose for the demo so demo text lives in one place;
-  export `EXAMPLE_SEED_ID` from `workedExample.ts` rather than copying prose.
-- Keep the dashboard radically simple. The guide and nudge are additive and
-  quiet; one primary action per state, one short sentence for the nudge. If the
-  copy starts explaining the layout, fix the layout.
-- Keep every string from the copy inventory verbatim or re-sweep anything you
-  change. The sweep test scans every new `src` file automatically.
+- The alignment marks are the differentiator. Make them legible without color and
+  keep them neutral. A pattern that means "this differs" is correct; anything
+  that reads as "this is wrong" (an X, a strike-through, red) is a defect against
+  the honesty guarantee and the "never claims one version is better" test.
+- This is a correction pass. When a screen already clears the bar, leave it.
+  Every change here closes a specific, named gap; "while I'm here" restyling is
+  drift.
+- Reuse existing copy for the new error messages ("This device blocked the save.
+  Allow storage, then try again.") so the voice stays consistent and the sweep
+  stays green.
+- Do not touch the loop's computation or storage: `align.ts`, the vault guard,
+  the store contract, and `DB_VERSION` are all frozen for this EPIC.
+- Prove the mobile and a11y claims at 390px in the e2e, not by eye. State in the
+  run summary what changed and what was already compliant, so the reviewer can
+  see the pass was real and scoped.
